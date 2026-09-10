@@ -5,29 +5,62 @@ management CLI. Everything here is either open or a decision worth keeping.
 
 ## Next
 
-The codebase and the automation are done; what remains is account-side and a
-few later, larger efforts.
+The codebase and the automation are done. The repo is live at
+`github.com/Rovetown/mdcompose` and the account-side setup in "Repository and
+release setup" below is complete (ruleset, `RELEASE_TOKEN`, the `pypi` and
+`testpypi` environments, both trusted publishers, Dependabot, private
+vulnerability reporting). What remains is the first release, a few follow-ups,
+and a set of OpenSSF Scorecard items folded into the sequence at the step each
+one belongs to. The Scorecard reasoning is in `docs/scorecard.md`.
 
-1. **Create the GitHub repo and wire the accounts.** All of "Repository and
-   release setup" below, in order. The blockers are the `RELEASE_TOKEN` PAT
-   (without it the release tag does not trigger `release.yml`) and the two
-   Actions environments. Run `trufflehog git file://. --only-verified` over the
-   full local history first, before the first push.
-2. **First release, as a dry run.** Run `bump.yml` with channel `alpha`,
-   confirm the tag lands on TestPyPI only, install it in a clean venv
-   (`pip install -i https://test.pypi.org/simple/ mdcompose==<ver>`). Then run
-   `bump.yml` with `stable` for the real thing.
-3. **Post-repo hardening.** Point `platform.ONEDRIVE_HELP_URL` at a real video.
-   Move the `Development Status` classifier off `3 - Alpha` when a release earns
-   it.
+### Do now, before the next Scorecard run
 
-Watch at the first release:
+1. Done. `SECURITY.md` now carries the private-advisory URL
+   (`https://github.com/Rovetown/mdcompose/security/advisories/new`), which is
+   what the Security-Policy check's linking requirement wants. Confirm the check
+   reaches 10 on the next `scorecard.yml` run.
 
-- `CHANGELOG.md` `[Unreleased]` is hand-written and Keep a Changelog shaped; the
-  first `cz bump` regenerates it from the commits. Confirm the output matches
-  before trusting the pipeline.
-- `bump.yml` runs `cz bump` from `version = "0.1.0.dev0"` with `version_provider
-  = "pep621"`; the first bump off a `.dev0` may need an explicit `--increment`.
+### First release
+
+2. Done, verifies at step 4. `release.yml` `build` job runs
+   `actions/attest-build-provenance` over `dist/*` (job now has
+   `id-token: write` and `attestations: write`), stages the bundle as
+   `mdcompose.intoto.jsonl`, and the `github-release` job attaches it to the
+   Release (assets are now listed explicitly, since the artifact download keeps
+   the `dist/` subdirectory and `gh release create` rejects a directory arg).
+   A SLSA `*.intoto.jsonl` scores 10 on Signed-Releases. Only runs on a stable
+   tag; pre-releases get no GitHub Release. Nothing to verify until the first
+   stable release lands the assets.
+3. **Alpha dry run.** Run `bump.yml` with channel `alpha`, confirm the tag
+   lands on TestPyPI only, install it in a clean venv
+   (`pip install -i https://test.pypi.org/simple/ mdcompose==<ver>`).
+   `bump.yml` runs `cz bump` from `version = "0.1.0.dev0"` with
+   `version_provider = "pep621"`; the first bump off a `.dev0` may need an
+   explicit `--increment`. `CHANGELOG.md` `[Unreleased]` is hand-written and
+   Keep a Changelog shaped; confirm the first `cz bump` regenerates it to match
+   before trusting the pipeline.
+4. **Stable release.** Run `bump.yml` with channel `stable`, approve the `pypi`
+   environment when the workflow pauses. Produces `v0.1.0` on PyPI and the first
+   GitHub Release. The Packaging check auto-resolves to 10 at this point,
+   because Scorecard recognises `pypa/gh-action-pypi-publish`.
+
+### After the first release
+
+5. **Post-release hardening.** Point `platform.ONEDRIVE_HELP_URL` at a real
+   page. Move the `Development Status` classifier off `3 - Alpha` when a release
+   earns it.
+6. **OpenSSF Best Practices passing badge.** Register the repo at
+   bestpractices.dev, complete the passing questionnaire (most criteria are
+   already met by the existing CI, tests, license, and static analysis), embed
+   the badge in the README. Scorecard's CII-Best-Practices check reads it
+   through the API: 0 to 5. Silver and gold are not attainable for a
+   solo-maintained project, so passing is the target. See `docs/scorecard.md`.
+
+### Not planned
+
+7. **Fuzzing.** Left at 0. Scorecard does not detect Python Hypothesis, and an
+   Atheris plus ClusterFuzzLite setup is out of proportion to the risk for two
+   small parsers. Revisit only if the parser surface grows.
 
 ## Where things live
 
@@ -105,6 +138,9 @@ Watch at the first release:
 - `docs/publishing.md` - the publish and maintenance plan.
 - `docs/benchmarks.md` - the performance baseline and how to run the suite.
 - `docs/hardening-review.md` - the one-time file-I/O and parser review.
+- `docs/scorecard.md` - the OpenSSF Scorecard score, the gap analysis, and
+  what is and is not worth fixing. The action items are in the `Next` section
+  above.
 
 ## CI/CD pipeline
 
@@ -290,7 +326,13 @@ personal unpublished use, never for anything released.
 Plan and rationale: `docs/publishing.md`. In-repo artifacts (`release.yml`,
 `CHANGELOG.md`, `renovate.json`, `codeql.yml`, `scorecard.yml`,
 `python-eol.yml`, workflow `permissions`) are all in place; the CI/CD pipeline
-section is the reference. What is left is account-side, roughly in order:
+section is the reference. What is left is account-side, roughly in order.
+
+Status, 2026-09-10: every account-side item in this list is done. The repo is
+public, the ruleset is active, `RELEASE_TOKEN` and both Actions environments
+exist, both trusted publishers are registered, and `pre-commit.ci` is enabled.
+The checkboxes below are kept for the record and are not re-ticked here. The
+live remaining work is in the `Next` section at the top of this file.
 
 - [ ] Immediately before making the repo public: run `trufflehog git file://.
   --only-verified` over the full local history, confirm clean. One time, local,

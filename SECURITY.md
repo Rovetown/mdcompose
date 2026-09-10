@@ -3,7 +3,8 @@
 ## Reporting a vulnerability
 
 Report a suspected vulnerability through GitHub's private vulnerability
-reporting: the **Security** tab of this repository, then **Report a
+reporting at https://github.com/Rovetown/mdcompose/security/advisories/new, or
+open the **Security** tab of this repository and choose **Report a
 vulnerability**. That channel is private to the maintainers.
 
 Please do not open a public issue for a security problem.

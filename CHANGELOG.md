@@ -23,4 +23,11 @@ All notable changes to mdcompose are recorded here. The format follows
 - A warning on `doctor` and `init` when a managed path is inside a
   OneDrive-synced folder (Windows).
 
+### Security
+
+- Release artifacts carry a SLSA build provenance attestation, signed with a
+  short-lived Sigstore certificate and recorded in the GitHub attestations API.
+  The provenance bundle is also attached to each GitHub Release. Verify with
+  `gh attestation verify <file> --repo Rovetown/mdcompose`.
+
 [Unreleased]: https://github.com/Rovetown/mdcompose/commits/main
