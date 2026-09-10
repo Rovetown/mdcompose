@@ -51,6 +51,13 @@ jobs:
     needs: classify
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # id-token and attestations are for actions/attest-build-provenance, which
+    # signs the sdist and wheel with a short-lived Sigstore certificate and
+    # records a SLSA provenance attestation. contents stays read.
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -71,6 +78,21 @@ jobs:
       - name: Check the distributions render on PyPI
         run: uvx twine check dist/*
 
+      - name: Attest build provenance for the distributions
+        id: attest
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: dist/*
+
+      - name: Stage the provenance bundle as a release asset
+        # The bundle is already in the GitHub attestations API; this copy is the
+        # asset Scorecard's Signed-Releases check looks for on the Release. Keep
+        # it out of dist/ so the PyPI publish never sees it. bundle-path goes
+        # through the environment, never interpolated into the shell.
+        env:
+          BUNDLE_PATH: ${{ steps.attest.outputs.bundle-path }}
+        run: cp "$BUNDLE_PATH" mdcompose.intoto.jsonl
+
       - name: Generate the CycloneDX SBOM
         run: |
           uv venv --python 3.11 runtime-env
@@ -84,6 +106,7 @@ jobs:
           path: |
             dist/*
             mdcompose-runtime.cdx.json
+            mdcompose.intoto.jsonl
 
   testpypi:
     name: publish to TestPyPI
@@ -144,8 +167,15 @@ jobs:
         # on the release-critical path (zizmor superfluous-actions). The tag
         # name comes from an environment variable, never interpolated into the
         # shell, and --verify-tag refuses to publish if the tag is not on the
-        # remote.
+        # remote. The assets are listed explicitly rather than globbed: the
+        # download preserves the dist/ subdirectory (least common ancestor of
+        # the uploaded paths), and gh release create rejects a directory arg.
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-        run: gh release create "$GITHUB_REF_NAME" artifacts/* --generate-notes --verify-tag
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            artifacts/dist/* \
+            artifacts/mdcompose-runtime.cdx.json \
+            artifacts/mdcompose.intoto.jsonl \
+            --generate-notes --verify-tag
