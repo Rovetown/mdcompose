@@ -133,7 +133,7 @@ def _eject_global(output: OutputContext, strip: bool, yes: bool) -> None:
         return
 
     for name, before, after in modifies:
-        output.content(_diff(name.name, before, after))
+        output.content(eject_module.file_diff(name.name, before, after))
     if recorded:
         output.info("would clear the recorded global mode and composition from the config")
     if not _confirmed(output, yes):
@@ -160,10 +160,6 @@ def _global_change(
     if managed_block.scan(text).problem is not None:
         return None
     return (path, text, managed_block.remove(text, block_id, path, keep_content=not strip))
-
-
-def _diff(name: str, before: str, after: str) -> str:
-    return eject_module.file_diff(name, before, after)
 
 
 def _resolve_target(directory: Path | None) -> Path:

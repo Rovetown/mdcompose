@@ -91,6 +91,18 @@ class OutputContext:
         """
         print(text, file=self.out)
 
+    def content_indented(self, text: str, *, empty: str = "") -> None:
+        """Write transported content indented four spaces, for a preview or diff.
+
+        ``empty`` is printed instead when the content is blank, so a caller can
+        show ``(empty)`` rather than a bare indent where that distinction
+        matters.
+        """
+        if empty and not text.strip():
+            self.content(empty)
+            return
+        self.content("\n".join(f"    {line}" for line in text.rstrip("\n").split("\n")))
+
     def warn(self, text: str) -> None:
         """Write a warning to stderr. Never suppressed by quiet mode."""
         print(assert_ascii(f"warning: {text}"), file=self.err)

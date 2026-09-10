@@ -19,13 +19,13 @@ from mdcompose.core.exit_codes import AttentionError
 from mdcompose.core.manifest import Manifest
 from mdcompose.core.snippets import Snippet
 
-Resolution = Literal["keep", "overwrite", "skip"]
+Resolution = Literal["keep", "overwrite"]
 
 KEEP: Resolution = "keep"
 OVERWRITE: Resolution = "overwrite"
-SKIP: Resolution = "skip"
+RESOLUTIONS: tuple[Resolution, ...] = (KEEP, OVERWRITE)
 
-AdoptOutcome = Literal["written", "already-present", "kept", "overwritten", "skipped"]
+AdoptOutcome = Literal["written", "already-present", "kept", "overwritten"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -158,8 +158,7 @@ def apply_adopt(
         outcomes[snippet_id] = "already-present"
 
     for collision in plan.collisions:
-        decision = resolutions.get(collision.snippet_id, KEEP)
-        if decision == OVERWRITE:
+        if resolutions.get(collision.snippet_id, KEEP) == OVERWRITE:
             snippets.write(
                 library_directory,
                 _snippet_from_manifest(
@@ -167,8 +166,6 @@ def apply_adopt(
                 ),
             )
             outcomes[collision.snippet_id] = "overwritten"
-        elif decision == SKIP:
-            outcomes[collision.snippet_id] = "skipped"
         else:
             outcomes[collision.snippet_id] = "kept"
 

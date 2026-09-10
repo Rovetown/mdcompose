@@ -31,6 +31,7 @@ DriftChoice = Literal["keep", "overwrite", "abort"]
 KEEP: DriftChoice = "keep"
 OVERWRITE: DriftChoice = "overwrite"
 ABORT: DriftChoice = "abort"
+DRIFT_CHOICES: tuple[DriftChoice, ...] = (KEEP, OVERWRITE, ABORT)
 
 #: How a selection was arrived at, so a command can say what it did.
 SelectionSource = Literal["flag", "detected", "picker", "manifest", "embedded"]
@@ -297,12 +298,17 @@ def _import_target(root: Path, import_from: str | None, mode: Mode) -> str:
     absolute = source if source.is_absolute() else (root / source)
     if not files.path_exists(absolute):
         raise AttentionError(f"{absolute}: no AGENTS.md to import from")
-    return _relative_posix(absolute, root)
+    return relative_import_target(absolute, root)
 
 
-def _relative_posix(target: Path, start: Path) -> str:
-    """Return target relative to start, in POSIX form, for an import directive."""
-    return Path(os.path.relpath(target, start)).as_posix()
+def relative_import_target(agents_path: Path, claude_dir: Path) -> str:
+    """The `@import` path from a CLAUDE.md to its AGENTS.md, relative and POSIX.
+
+    Relative so the directive keeps working after the pair is moved together,
+    POSIX because that is the form the directive is written in on every
+    platform.
+    """
+    return Path(os.path.relpath(agents_path, claude_dir)).as_posix()
 
 
 def _targets(

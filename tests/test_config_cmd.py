@@ -80,6 +80,27 @@ def test_show_marks_an_unrecognized_field(invoke: Invoke, config_dir: Path) -> N
     assert "unrecognized" in line
 
 
+def test_show_marks_an_explicitly_set_library_path(invoke: Invoke, config_dir: Path) -> None:
+    write_raw(config_dir, {"schema_version": 1, "snippet_library_path": "/somewhere/snips"})
+    line = next(
+        ln for ln in invoke("config", "show").out.splitlines() if "snippet_library_path" in ln
+    )
+    assert "set" in line and "/somewhere/snips" in line
+
+
+def test_show_marks_an_unrecognized_nested_claude_global_key(
+    invoke: Invoke, config_dir: Path
+) -> None:
+    write_raw(
+        config_dir,
+        {"schema_version": 1, "claude_global": {"path": "/x/CLAUDE.md", "future": "y"}},
+    )
+    line = next(
+        ln for ln in invoke("config", "show").out.splitlines() if "claude_global.future" in ln
+    )
+    assert "unrecognized" in line
+
+
 def test_show_with_no_config_prints_defaults_and_creates_nothing(
     invoke: Invoke, config_dir: Path
 ) -> None:
@@ -102,6 +123,13 @@ def test_set_a_nested_field(invoke: Invoke, config_dir: Path) -> None:
     invoke("config", "set", "claude_global.mode", "import")
     document = json.loads(config_file(config_dir).read_text(encoding="utf-8"))
     assert document["claude_global"]["mode"] == "import"
+
+
+def test_set_a_nested_path_writes_no_mode_key(invoke: Invoke, config_dir: Path) -> None:
+    invoke("config", "set", "claude_global.path", "/x/CLAUDE.md")
+    nested = json.loads(config_file(config_dir).read_text(encoding="utf-8"))["claude_global"]
+    assert nested["path"] == "/x/CLAUDE.md"
+    assert "mode" not in nested
 
 
 def test_set_creates_the_file_and_directory(invoke: Invoke, config_dir: Path) -> None:
@@ -161,6 +189,16 @@ def test_unset_an_already_absent_field_is_a_no_op(invoke: Invoke, config_dir: Pa
     write_raw(config_dir, {"schema_version": 1, "default_mode": "copy"})
     before = config_file(config_dir).read_bytes()
     result = invoke("config", "unset", "global_agents_path")
+    assert result.code == EXIT_OK
+    assert config_file(config_dir).read_bytes() == before
+
+
+def test_unset_an_already_absent_nested_field_is_a_no_op(
+    invoke: Invoke, config_dir: Path
+) -> None:
+    write_raw(config_dir, {"schema_version": 1, "claude_global": {"path": "/x/CLAUDE.md"}})
+    before = config_file(config_dir).read_bytes()
+    result = invoke("config", "unset", "claude_global.mode")
     assert result.code == EXIT_OK
     assert config_file(config_dir).read_bytes() == before
 

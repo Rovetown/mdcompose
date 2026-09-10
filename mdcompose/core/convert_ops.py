@@ -189,15 +189,5 @@ def _line_offsets(lines: Sequence[str]) -> list[int]:
 
 def require_different(source_path: Path, target_path: Path) -> None:
     """Refuse a conversion whose source and target are the same file."""
-    if _normalized(source_path) == _normalized(target_path):
+    if files.normalized_path(source_path) == files.normalized_path(target_path):
         raise AttentionError("convert needs a different source and target, not the same file")
-
-
-def _normalized(path: Path) -> str:
-    import os
-
-    try:
-        resolved = path.resolve()
-    except OSError:
-        resolved = path.absolute()
-    return os.path.normcase(str(resolved))

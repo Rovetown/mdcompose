@@ -90,14 +90,19 @@ def test_an_absent_field_yields_no_targets(home: Path) -> None:
 @pytest.mark.parametrize(
     "entries",
     [
+        "not-a-list",  # the field itself is not a list
+        ["a bare string"],  # an entry is not an object
         [{"label": "a", "path": "/x/1"}, {"label": "a", "path": "/x/2"}],  # dup label
         [{"label": "a", "path": "/x/1"}, {"label": "b", "path": "/x/1"}],  # dup path
+        [{"label": "", "path": "/x/1"}],  # empty label
         [{"label": "a", "path": "relative/path"}],  # relative
         [{"label": "a"}],  # incomplete
         [{"label": "a", "path": "/x/1", "mode": "import"}],  # import rejected
+        [{"label": "a", "path": "/x/1", "mode": "sideways"}],  # unknown mode
+        [{"label": "a", "path": "/x/1", "colour": "blue"}],  # unrecognized key
     ],
 )
-def test_an_invalid_targets_field_is_refused_on_read(home: Path, entries: list) -> None:
+def test_an_invalid_targets_field_is_refused_on_read(home: Path, entries: object) -> None:
     raw_config(home, {"schema_version": 1, "registered_global_targets": entries})
     with pytest.raises(config_module.AttentionError):
         load(home)
@@ -225,6 +230,23 @@ def test_sync_status_computation(home: Path) -> None:
     assert targets_module.sync_status(entry, canonical) == "out-of-sync"
 
 
+def test_sync_status_is_out_of_sync_when_the_file_has_no_block(home: Path) -> None:
+    dest = home / ".codex" / "AGENTS.md"
+    dest.parent.mkdir(parents=True)
+    dest.write_text("# Codex\n\nno managed block here\n", encoding="utf-8")
+    entry = config_module.TargetEntry(label="codex", path=dest.as_posix())
+    assert targets_module.sync_status(entry, "anything\n") == "out-of-sync"
+
+
+def test_sync_status_is_malformed_when_the_markers_are_broken(home: Path) -> None:
+    dest = home / ".codex" / "AGENTS.md"
+    dest.parent.mkdir(parents=True)
+    opening = managed_block.upsert("", TARGET_BLOCK, "body\n", dest).splitlines()[0]
+    dest.write_text(f"{opening}\nbody with no closing marker\n", encoding="utf-8")
+    entry = config_module.TargetEntry(label="codex", path=dest.as_posix())
+    assert targets_module.sync_status(entry, "body\n") == "malformed"
+
+
 # --- section 4: target remove ---
 
 
@@ -317,6 +339,75 @@ def test_a_target_is_never_read_as_a_source(invoke: Invoke, home: Path) -> None:
         "--global-agents-path", str(agents), "--on-drift", "overwrite",
     )
     assert agents.read_bytes() == canonical_before
+
+
+# --- section 6: projection failures are isolated ---
+
+
+def _config_with_target(dest: Path) -> config_module.GlobalConfig:
+    entry = config_module.TargetEntry(label="codex", path=dest.as_posix())
+    return config_module.GlobalConfig(registered_global_targets=(entry,))
+
+
+def test_project_skips_a_malformed_target_and_reports_failure(home: Path) -> None:
+    dest = home / ".codex" / "AGENTS.md"
+    dest.parent.mkdir(parents=True)
+    opening = managed_block.upsert("", TARGET_BLOCK, "x\n", dest).splitlines()[0]
+    dest.write_text(f"{opening}\nunterminated\n", encoding="utf-8")
+    before = dest.read_bytes()
+
+    result = targets_module.project(_config_with_target(dest), "canonical\n")
+
+    assert result.had_failure
+    assert result.outcomes[0].status == "skipped-malformed"
+    assert dest.read_bytes() == before
+
+
+def test_project_keeps_a_drifted_block_the_caller_did_not_resolve(home: Path) -> None:
+    dest = home / ".codex" / "AGENTS.md"
+    dest.parent.mkdir(parents=True)
+    dest.write_text(managed_block.upsert("", TARGET_BLOCK, "hand-edited\n", dest), encoding="utf-8")
+
+    result = targets_module.project(_config_with_target(dest), "canonical\n")
+
+    assert not result.had_failure
+    assert result.outcomes[0].status == "kept"
+    assert "hand-edited" in dest.read_text(encoding="utf-8")
+
+
+def test_project_skips_a_drifted_block_on_the_skip_choice(home: Path) -> None:
+    dest = home / ".codex" / "AGENTS.md"
+    dest.parent.mkdir(parents=True)
+    dest.write_text(managed_block.upsert("", TARGET_BLOCK, "hand-edited\n", dest), encoding="utf-8")
+
+    result = targets_module.project(
+        _config_with_target(dest), "canonical\n", drift_choices={"codex": targets_module.SKIP}
+    )
+
+    assert result.outcomes[0].status == "kept"
+    assert result.outcomes[0].detail == "skipped a drifted block"
+
+
+def test_project_reports_an_unwritable_target(
+    home: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    dest = home / ".codex" / "AGENTS.md"
+
+    def refuse(*_args: object, **_kwargs: object) -> None:
+        raise OSError("permission denied")
+
+    monkeypatch.setattr(targets_module.files, "write_text", refuse)
+    result = targets_module.project(_config_with_target(dest), "canonical\n")
+
+    assert result.had_failure
+    assert result.outcomes[0].status == "skipped-unwritable"
+
+
+def test_add_target_resolves_a_relative_path_against_the_cwd(invoke: Invoke, home: Path) -> None:
+    result = invoke("target", "add", "codex", "sub/AGENTS.md")
+    assert result.code == EXIT_OK
+    stored = load(home).registered_global_targets[0].path
+    assert stored == (home.parent / "sub" / "AGENTS.md").as_posix()
 
 
 # --- section 7: idempotence ---

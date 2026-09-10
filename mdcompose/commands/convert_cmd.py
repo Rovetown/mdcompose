@@ -9,7 +9,7 @@ shows a diff and asks before writing.
 
 from __future__ import annotations
 
-import os
+from collections.abc import Callable
 from pathlib import Path
 from typing import Annotated
 
@@ -127,7 +127,7 @@ def _validated_mode(raw: str | None) -> Mode | None:
         raise AttentionError(
             f"--mode must be '{composition.IMPORT}' or '{composition.COPY}', found '{raw}'"
         )
-    return raw  # type: ignore[return-value]
+    return raw
 
 
 def _reject_mode_where_it_cannot_apply(target_path: Path, requested: Mode | None) -> None:
@@ -186,7 +186,7 @@ def _new_block_mode(
     )
 
 
-def _mode_asker(output: OutputContext):  # noqa: ANN202 - a closure or None
+def _mode_asker(output: OutputContext) -> Callable[[], Mode] | None:
     if output.json_mode or not is_interactive():
         return None
 
@@ -253,9 +253,9 @@ def _resolve_pair(
     """Resolve both arguments to the project's own AGENTS.md or CLAUDE.md."""
     project = Path.cwd()
     supported = {
-        _normalized(project / platform_module.AGENTS_MD_NAME): project
+        files.normalized_path(project / platform_module.AGENTS_MD_NAME): project
         / platform_module.AGENTS_MD_NAME,
-        _normalized(project / platform_module.CLAUDE_MD_NAME): project
+        files.normalized_path(project / platform_module.CLAUDE_MD_NAME): project
         / platform_module.CLAUDE_MD_NAME,
     }
     source_path = _one_of(source, info, supported)
@@ -269,21 +269,13 @@ def _one_of(
     raw: str, info: platform_module.PlatformInfo, supported: dict[str, Path]
 ) -> Path:
     resolved = platform_module.resolve_path(raw, info)
-    match = supported.get(_normalized(resolved.path))
+    match = supported.get(files.normalized_path(resolved.path))
     if match is None:
         raise AttentionError(
             f"{resolved.path}: convert operates on this project's AGENTS.md and CLAUDE.md, "
             "nothing else"
         )
     return match
-
-
-def _normalized(path: Path) -> str:
-    try:
-        resolved = path.resolve()
-    except OSError:
-        resolved = path.absolute()
-    return os.path.normcase(str(resolved))
 
 
 def _nothing_convertible(available: tuple[Section, ...]) -> bool:

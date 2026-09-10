@@ -11,7 +11,7 @@ The Typer command is still ``import``.
 
 from __future__ import annotations
 
-import os
+from collections.abc import Sequence
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated
@@ -67,7 +67,7 @@ OnCollisionOption = Annotated[
     str | None,
     typer.Option(
         "--on-collision",
-        help="Resolve a snippet-name collision without asking: overwrite, keep, or rename.",
+        help="Resolve a snippet-name collision without asking: keep, overwrite, or rename.",
     ),
 ]
 QuietOption = Annotated[bool, typer.Option("--quiet", "-q", help="Suppress informational output.")]
@@ -147,7 +147,7 @@ def _save_snippet(
     """Persist the extracted content to the library, so it is reusable everywhere.
 
     A name that is already taken is resolved by the flag or by asking: an
-    identical body is a silent no-op, a different one offers overwrite, keep, or
+    identical body is a silent no-op, a different one offers keep, overwrite, or
     a new name.
     """
     library = _resolve_library()
@@ -196,14 +196,14 @@ def _resolve_collision(
     if output.json_mode or not is_interactive():
         raise AttentionError(
             f"a snippet named '{snippet.id}' already exists with different content. "
-            "Pass --on-collision with overwrite, keep, or rename."
+            "Pass --on-collision with keep, overwrite, or rename."
         )
     existing = library.require(snippet.id)
     output.warn(f"snippet '{snippet.id}' already exists in the library with different content")
     output.info("  library copy:")
-    output.content(_indent(existing.body))
+    output.content_indented(existing.body)
     output.info("  imported content:")
-    output.content(_indent(snippet.body))
+    output.content_indented(snippet.body)
     answer = prompt_choice(
         output,
         f"snippet '{snippet.id}'",
@@ -216,9 +216,11 @@ def _resolve_collision(
 
 def _validated_collision_choice(candidate: str) -> import_ops.CollisionChoice:
     if candidate not in import_ops.COLLISION_CHOICES:
-        listed = ", ".join(import_ops.COLLISION_CHOICES)
-        raise AttentionError(f"--on-collision must be one of {listed}, found '{candidate}'")
-    return candidate  # type: ignore[return-value]
+        raise AttentionError(
+            f"--on-collision must be one of {', '.join(import_ops.COLLISION_CHOICES)}, "
+            f"found '{candidate}'"
+        )
+    return candidate
 
 
 def _ask_new_name(
@@ -228,7 +230,7 @@ def _ask_new_name(
     if output.json_mode or not is_interactive():
         raise AttentionError(
             "choosing a new snippet name needs a terminal. Re-run with a different "
-            "--save-as-snippet, or --on-collision with overwrite or keep."
+            "--save-as-snippet, or --on-collision with keep or overwrite."
         )
     while True:
         answer = typer.prompt("new snippet name", err=True).strip()
@@ -241,10 +243,6 @@ def _ask_new_name(
             output.warn(f"'{candidate}' is also taken, choose another")
             continue
         return candidate
-
-
-def _indent(text: str) -> str:
-    return "\n".join(f"    {line}" for line in text.rstrip("\n").split("\n"))
 
 
 def _split_tags(raw: str | None) -> tuple[str, ...]:
@@ -285,16 +283,8 @@ def _target_path(to_claude: bool) -> Path:
 
 
 def _reject_source_is_target(source_path: Path, target_path: Path) -> None:
-    if _normalized(source_path) == _normalized(target_path):
+    if files.normalized_path(source_path) == files.normalized_path(target_path):
         raise AttentionError(f"{source_path}: a file cannot be imported into itself")
-
-
-def _normalized(path: Path) -> str:
-    try:
-        resolved = path.resolve()
-    except OSError:
-        resolved = path.absolute()
-    return os.path.normcase(str(resolved))
 
 
 def _pool(
@@ -326,14 +316,14 @@ def _picker(output: OutputContext) -> import_ops.SectionSelector | None:
     if output.json_mode or not is_interactive():
         return None
 
-    def pick(available: tuple[sections.Section, ...]) -> tuple[sections.Section, ...]:
+    def pick(available: Sequence[sections.Section]) -> tuple[sections.Section, ...]:
         return _run_section_picker(available)
 
     return pick
 
 
 def _run_section_picker(
-    available: tuple[sections.Section, ...],
+    available: Sequence[sections.Section],
 ) -> tuple[sections.Section, ...]:
     """Ask which sections to import, showing each one's heading level.
 

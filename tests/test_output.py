@@ -108,6 +108,18 @@ def test_transported_content_is_not_restricted() -> None:
     assert captured.out.getvalue() == body + "\n"
 
 
+def test_content_indented_prefixes_four_spaces() -> None:
+    captured = make_output()
+    captured.context.content_indented("first\nsecond\n")
+    assert captured.out.getvalue() == "    first\n    second\n"
+
+
+def test_content_indented_shows_the_empty_placeholder_for_blank_content() -> None:
+    captured = make_output()
+    captured.context.content_indented("   \n", empty="    (empty)")
+    assert captured.out.getvalue() == "    (empty)\n"
+
+
 def test_generated_output_encodes_on_a_legacy_windows_code_page() -> None:
     """The whole point of the ASCII rule: cp1252 must never raise."""
     captured = make_output()

@@ -46,7 +46,7 @@ def test_a_stub_selector_drives_the_selection() -> None:
 
 def test_the_selector_result_is_returned_in_source_order() -> None:
     available = parsed()
-    picked = [s for s in reversed(available)]
+    picked = list(reversed(available))
     result = import_ops.resolve_selection(
         available, requested_headings=None, selector=lambda _: picked
     )

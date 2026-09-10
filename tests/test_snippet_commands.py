@@ -294,17 +294,6 @@ def test_adopt_overwrites_when_told_to(invoke: Invoke, library: Path, tmp_path: 
     assert snippets_module.read(library / "commit-style.md").body == "Different.\n"
 
 
-def test_adopt_skips_when_told_to(invoke: Invoke, library: Path, tmp_path: Path) -> None:
-    write_manifest(
-        tmp_path / "project",
-        [{"id": "commit-style", "position": 0, "applies_to": "both", "content": "Different.\n"}],
-    )
-    before = (library / "commit-style.md").read_bytes()
-    result = invoke("snippet", "adopt", "--on-collision", "skip")
-    assert (library / "commit-style.md").read_bytes() == before
-    assert "skipped" in result.out
-
-
 def test_a_collision_without_an_answer_refuses_rather_than_guessing(
     invoke: Invoke, library: Path, tmp_path: Path
 ) -> None:

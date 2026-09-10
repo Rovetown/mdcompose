@@ -55,7 +55,7 @@ OnCollisionOption = Annotated[
     str | None,
     typer.Option(
         "--on-collision",
-        help="Resolve every collision without asking: keep, overwrite, or skip.",
+        help="Resolve every collision without asking: keep or overwrite.",
     ),
 ]
 IdsArgument = Annotated[
@@ -275,7 +275,7 @@ def _resolve_collisions(
         answer = prompt_choice(
             output,
             f"snippet '{collision.snippet_id}'",
-            options=(library_ops.KEEP, library_ops.OVERWRITE, library_ops.SKIP),
+            options=library_ops.RESOLUTIONS,
             default=library_ops.KEEP,
             flag="--on-collision",
         )
@@ -284,24 +284,20 @@ def _resolve_collisions(
 
 
 def _validated_resolution(candidate: str) -> library_ops.Resolution:
-    allowed = (library_ops.KEEP, library_ops.OVERWRITE, library_ops.SKIP)
-    if candidate not in allowed:
+    if candidate not in library_ops.RESOLUTIONS:
         raise AttentionError(
-            f"--on-collision must be one of {', '.join(allowed)}, found '{candidate}'"
+            f"--on-collision must be one of {', '.join(library_ops.RESOLUTIONS)}, "
+            f"found '{candidate}'"
         )
-    return candidate  # type: ignore[return-value]
+    return candidate
 
 
 def _show_difference(output: OutputContext, collision: library_ops.Collision) -> None:
     """Show both versions, so the choice is made with the content in view."""
     output.info(f"  library copy of '{collision.snippet_id}':")
-    output.content(_indent(collision.local))
+    output.content_indented(collision.local)
     output.info(f"  embedded copy of '{collision.snippet_id}':")
-    output.content(_indent(collision.embedded))
-
-
-def _indent(text: str) -> str:
-    return "\n".join(f"    {line}" for line in text.rstrip("\n").split("\n"))
+    output.content_indented(collision.embedded)
 
 
 def _report_adoption(output: OutputContext, result: library_ops.AdoptResult) -> None:
@@ -310,7 +306,6 @@ def _report_adoption(output: OutputContext, result: library_ops.AdoptResult) -> 
         ("overwritten", "overwrote"),
         ("already-present", "already present"),
         ("kept", "kept the library copy of"),
-        ("skipped", "skipped"),
     ):
         named = result.ids_with(outcome)  # type: ignore[arg-type]
         if named:

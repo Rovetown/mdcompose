@@ -199,8 +199,8 @@ def _one_target(item: object, index: int, path: Path) -> TargetEntry:
         raise AttentionError(f"{path}: {where} 'mode' must be 'copy', found '{mode}'")
     unknown = set(item) - _TARGET_KEYS
     if unknown:
-        raise AttentionError(f"{path}: {where} has an unrecognized key '{sorted(unknown)[0]}'")
-    return TargetEntry(label=label, path=target_path, mode=mode)  # type: ignore[arg-type]
+        raise AttentionError(f"{path}: {where} has an unrecognized key '{min(unknown)}'")
+    return TargetEntry(label=label, path=target_path, mode=mode)
 
 
 def _as_int(raw: Mapping[str, object], key: str, path: Path) -> int | None:
@@ -331,16 +331,16 @@ def apply_set(config: GlobalConfig, key: str, raw_value: str) -> GlobalConfig:
     """
     _reject_unsettable(key)
     if key in _MODE_KEYS:
-        value: object = _validated_mode_value(key, raw_value)
-    else:
-        value = _expanded_path(raw_value)
-    return _with_key(config, key, value)
+        return _with_mode(config, key, _validated_mode_value(key, raw_value))
+    return _with_path(config, key, _expanded_path(raw_value))
 
 
 def apply_unset(config: GlobalConfig, key: str) -> GlobalConfig:
     """Return the config with ``key`` removed, so it falls back to its default."""
     _reject_unsettable(key)
-    return _with_key(config, key, None)
+    if key in _MODE_KEYS:
+        return _with_mode(config, key, None)
+    return _with_path(config, key, None)
 
 
 def _reject_unsettable(key: str) -> None:
@@ -380,17 +380,33 @@ def _expanded_path(raw_value: str) -> str:
     expanded = Path(raw_value).expanduser()
     if expanded.is_absolute():
         return expanded.as_posix()
-    if raw_value.startswith("/") or raw_value.startswith("~"):
+    if raw_value.startswith(("/", "~")):
         return expanded.as_posix()
     return (Path.cwd() / expanded).as_posix()
 
 
-def _with_key(config: GlobalConfig, key: str, value: object) -> GlobalConfig:
-    if "." not in key:
-        return replace(config, **{key: value})
-    _, nested_key = key.split(".", 1)
-    current = config.claude_global or ClaudeGlobal()
-    updated = replace(current, **{nested_key: value})
+def _with_path(config: GlobalConfig, key: str, value: str | None) -> GlobalConfig:
+    if key == "snippet_library_path":
+        return replace(config, snippet_library_path=value)
+    if key == "global_agents_path":
+        return replace(config, global_agents_path=value)
+    # The only remaining path key is the nested claude_global.path.
+    return _fold_claude_global(config, replace(_current_claude_global(config), path=value))
+
+
+def _with_mode(config: GlobalConfig, key: str, value: Mode | None) -> GlobalConfig:
+    if key == "default_mode":
+        return replace(config, default_mode=value)
+    # The only remaining mode key is the nested claude_global.mode.
+    return _fold_claude_global(config, replace(_current_claude_global(config), mode=value))
+
+
+def _current_claude_global(config: GlobalConfig) -> ClaudeGlobal:
+    return config.claude_global or ClaudeGlobal()
+
+
+def _fold_claude_global(config: GlobalConfig, updated: ClaudeGlobal) -> GlobalConfig:
+    """Drop an emptied ``claude_global`` block rather than leave it as an empty object."""
     if updated.path is None and updated.mode is None and not updated.extra:
         return replace(config, claude_global=None)
     return replace(config, claude_global=updated)

@@ -720,9 +720,9 @@ otherwise every cross-platform checkout would look like a library full of
 conflicts.
 
 An id that already exists with different content is a collision. Both versions
-are shown and the user chooses to keep the local copy, overwrite it, or skip.
-Nothing is overwritten without a decision, and a collision with no decision
-supplied leaves the local copy alone.
+are shown and the user chooses to keep the local copy or overwrite it. Nothing
+is overwritten without a decision, and a collision with no decision supplied
+leaves the local copy alone.
 
 Adopting only named ids is supported. An id the manifest does not embed is
 refused, naming it and listing what is available.
@@ -991,7 +991,7 @@ snippet. An unusable name is refused before anything is written.
 A name already in the library is handled by content: an identical body is
 reported as already present and nothing is rewritten, comparison being
 normalization-aware so a line-ending difference is still identical. A different
-body shows both versions and offers to overwrite, keep, or save under a new name;
+body shows both versions and offers to keep, overwrite, or save under a new name;
 keeping still applies the content to the project target. An option supplies the
 choice for an unattended run.
 

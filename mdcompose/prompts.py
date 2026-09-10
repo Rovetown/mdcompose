@@ -92,7 +92,7 @@ def prompt_choice(
             f"Pass {flag} with one of: {', '.join(options)}."
         )
     listed = ", ".join(options)
-    answer = typer.prompt(
+    answer: str = typer.prompt(
         f"{subject}: {listed}",
         default=default,
         err=True,

@@ -13,8 +13,10 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from mdcompose.core import config as config_module
+from mdcompose.core import files, managed_block
 from mdcompose.core import manifest as manifest_module
 from mdcompose.core import platform as platform_module
+from mdcompose.core import targets as targets_module
 from mdcompose.core.platform import PlatformInfo, ResolvedPath, onedrive_warning
 
 NOT_CONFIGURED = "not configured"
@@ -182,8 +184,6 @@ def _build_targets(
     """
     if not configuration.registered_global_targets:
         return ()
-    from mdcompose.core import targets as targets_module
-
     canonical = _canonical_block(configuration, info)
     reports: list[TargetReport] = []
     for entry in configuration.registered_global_targets:
@@ -203,9 +203,6 @@ def _build_targets(
 def _canonical_block(
     configuration: config_module.GlobalConfig, info: PlatformInfo
 ) -> str | None:
-    from mdcompose.core import files, managed_block
-    from mdcompose.core import targets as targets_module
-
     if configuration.global_agents_path is None:
         return None
     resolved = platform_module.resolve_path(configuration.global_agents_path, info)

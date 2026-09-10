@@ -95,9 +95,39 @@ jobs:
       - name: Run ruff
         run: uv run --no-sync ruff check .
 
+      - name: Run mypy
+        # Strict type checking over mdcompose/. Config in [tool.mypy].
+        run: uv run --no-sync mypy
+
       - name: Check dependency hygiene
         # Unused, missing, or misplaced dependencies, inferred from the imports.
         run: uv run --no-sync deptry .
+
+  coverage:
+    # A single-platform coverage floor. The full matrix in `test` proves the
+    # suite passes everywhere; this one run enforces `fail_under` from
+    # [tool.coverage.report] so coverage cannot slide unnoticed between
+    # ratchets. It is not the matrix's job because branch coverage differs by
+    # platform (winreg, /mnt/) and the floor is set against one of them.
+    name: coverage floor
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Sync the locked environment
+        run: uv sync --locked
+
+      - name: Run the suite under coverage
+        run: uv run --no-sync pytest --cov=mdcompose --cov-report=term-missing
 
   ascii:
     # This project requires every character it generates, and every character in
@@ -229,7 +259,7 @@ jobs:
     # weaken the gate, so the list is deliberately explicit.
     name: all green
     if: always()
-    needs: [test, lint, ascii, build, hooks, commits, gitleaks]
+    needs: [test, lint, coverage, ascii, build, hooks, commits, gitleaks]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:

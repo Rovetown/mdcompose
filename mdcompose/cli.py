@@ -174,10 +174,10 @@ def render_doctor(output: OutputContext, report: report_module.DoctorReport) -> 
     if not report.drift:
         output.info("  the manifest records no managed files")
         return
-    key_width = max(len(entry.key) for entry in report.drift)
-    for entry in report.drift:
-        detail = "" if entry.detail is None else f"  ({entry.detail})"
-        output.info(f"  {entry.key.ljust(key_width)}  {entry.status}{detail}")
+    key_width = max(len(drift.key) for drift in report.drift)
+    for drift in report.drift:
+        detail = "" if drift.detail is None else f"  ({drift.detail})"
+        output.info(f"  {drift.key.ljust(key_width)}  {drift.status}{detail}")
 
 
 def run(argv: list[str] | None = None) -> int:

@@ -146,6 +146,7 @@ def render_diff(plan: EjectPlan) -> str:
 
 
 def file_diff(name: str, before: str, after: str) -> str:
+    """A unified diff between one file's current and post-eject content."""
     lines = difflib.unified_diff(
         before.splitlines(), after.splitlines(), fromfile=name, tofile=name, lineterm=""
     )
@@ -162,5 +163,6 @@ def summary(plan: EjectPlan) -> tuple[str, ...]:
 
 
 def malformed_message(plan: EjectPlan) -> str:
+    """The error text for the first file whose markers cannot be parsed."""
     path, problem = plan.malformed[0]
     return f"{path}: {problem}. Fix the markers before ejecting; nothing was changed."

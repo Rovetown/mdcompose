@@ -14,8 +14,6 @@ preserved, by the same rules that protect a project's own files.
 
 from __future__ import annotations
 
-import os
-from collections.abc import Sequence
 from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Literal
@@ -54,10 +52,6 @@ class ProjectionResult:
     @property
     def had_failure(self) -> bool:
         return any(o.status in {"skipped-malformed", "skipped-unwritable"} for o in self.outcomes)
-
-    @property
-    def wrote_anything(self) -> bool:
-        return any(o.status in {"written", "created"} for o in self.outcomes)
 
 
 def target_path(entry: TargetEntry) -> Path:
@@ -176,35 +170,12 @@ def _project_one(
     return ProjectionOutcome(entry.label, path, "created" if not exists else "written")
 
 
-def block_diff(entry: TargetEntry, canonical_content: str) -> str:
-    """A unified diff of what projecting would change in a target's block."""
-    import difflib
-
-    path = target_path(entry)
-    before = None
-    if path.is_file():
-        before = managed_block.scan(files.read_text(path)).find(TARGET_BLOCK)
-    before_text = "" if before is None else before.content
-    lines = difflib.unified_diff(
-        before_text.splitlines(),
-        canonical_content.splitlines(),
-        fromfile=entry.label,
-        tofile=entry.label,
-        lineterm="",
-    )
-    return "\n".join(lines)
-
-
 def _same_path(left: str, right: str) -> bool:
-    return os.path.normcase(_canon(left)) == os.path.normcase(_canon(right))
+    return _canon(left) == _canon(right)
 
 
 def _canon(value: str) -> str:
-    candidate = Path(value).expanduser()
-    try:
-        return str(candidate.resolve())
-    except OSError:
-        return str(candidate.absolute())
+    return files.normalized_path(Path(value).expanduser())
 
 
 def drifted_targets(
@@ -227,7 +198,3 @@ def _has_drifted_block(entry: TargetEntry, canonical_content: str) -> bool:
         return False
     block = scan.find(TARGET_BLOCK)
     return block is not None and not files.content_equal(block.content, canonical_content)
-
-
-def import_mode_targets(entries: Sequence[TargetEntry]) -> tuple[TargetEntry, ...]:
-    return tuple(entry for entry in entries if entry.mode == "import")

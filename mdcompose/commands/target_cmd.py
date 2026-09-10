@@ -94,30 +94,34 @@ def list_targets(
     output = output_for(context, quiet=quiet, json_output=json_output, no_colour=no_colour)
     _, configuration = _config()
     canonical = _canonical_content(configuration)
-    rows = [
-        {
-            "label": entry.label,
-            "path": targets_module.target_path(entry).as_posix(),
-            "present": files.path_exists(targets_module.target_path(entry)),
-            "sync": (
-                "unknown"
-                if canonical is None
-                else targets_module.sync_status(entry, canonical)
-            ),
-        }
-        for entry in configuration.registered_global_targets
-    ]
+    entries = configuration.registered_global_targets
+
+    def sync_of(entry: config_module.TargetEntry) -> str:
+        if canonical is None:
+            return "unknown"
+        return targets_module.sync_status(entry, canonical)
 
     if output.json_mode:
+        rows = [
+            {
+                "label": entry.label,
+                "path": targets_module.target_path(entry).as_posix(),
+                "present": files.path_exists(targets_module.target_path(entry)),
+                "sync": sync_of(entry),
+            }
+            for entry in entries
+        ]
         output.emit(json.dumps({"targets": rows}, indent=2, ensure_ascii=True))
         return
-    if not rows:
+    if not entries:
         output.info("no targets registered")
         return
-    width = max(len(row["label"]) for row in rows)
-    for row in rows:
-        present = "present" if row["present"] else "absent"
-        output.info(f"  {row['label'].ljust(width)}  {row['sync']:12}  {present}  {row['path']}")
+    width = max(len(entry.label) for entry in entries)
+    for entry in entries:
+        path = targets_module.target_path(entry)
+        present = "present" if files.path_exists(path) else "absent"
+        label = entry.label.ljust(width)
+        output.info(f"  {label}  {sync_of(entry):12}  {present}  {path.as_posix()}")
 
 
 def _canonical_content(configuration: config_module.GlobalConfig) -> str | None:

@@ -52,6 +52,7 @@ dev = [
   # randomises test order); the rest are inert until invoked or until a test
   # imports them. See "Codebase-wide quality pass" in TODO.md.
   "mypy>=1.11",
+  "types-pyyaml>=6.0",
   "pytest-cov>=5",
   "pytest-randomly>=3.15",
   "hypothesis>=6.100",
@@ -90,8 +91,7 @@ changelog_merge_prerelease = true
 mutmut = "mutmut"
 
 [tool.mypy]
-# The target for the quality pass. The suite is not type-clean yet, so this is
-# not wired into CI: run `uv run mypy` by hand during that pass.
+# Strict, and enforced: the `lint` job in ci.yml runs `uv run mypy`.
 python_version = "3.11"
 strict = true
 files = ["mdcompose"]
@@ -105,6 +105,13 @@ exclude_also = [
   "if TYPE_CHECKING:",
   "raise NotImplementedError",
 ]
+precision = 2
+# A floor, not a target. Set one whole point below the real number
+# (92.86 at the time of writing) so a small honest change does not fail
+# CI, and ratcheted up as coverage rises. The measure is "every
+# contract requirement has a test", not a percentage; this only stops a
+# silent slide.
+fail_under = 92
 
 [tool.interrogate]
 # Ratchet up during the quality pass; 0 so a stray `uv run interrogate` reports
@@ -146,10 +153,15 @@ select = [
   "ANN",              # annotations
   "ARG",              # unused arguments
   "TID252",           # no relative imports
+  "C4",               # comprehension clarity
+  "PIE",              # dead or redundant code
+  "FURB",             # modernization the others miss
+  "SLF",              # no reaching into another module's privates
 ]
 ignore = [
   "ANN401",           # allow Any where genuinely needed
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/*" = ["ANN201", "ANN001", "ARG001"]
+# Tests legitimately reach into internals to exercise one function in isolation.
+"tests/*" = ["ANN201", "ANN001", "ARG001", "SLF001"]

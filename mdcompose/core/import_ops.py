@@ -31,11 +31,11 @@ COLLISION: SnippetStatus = "collision"
 
 #: How to resolve a collision: replace the library copy, keep it, or save under
 #: a different id.
-CollisionChoice = Literal["overwrite", "keep", "rename"]
-OVERWRITE: CollisionChoice = "overwrite"
+CollisionChoice = Literal["keep", "overwrite", "rename"]
 KEEP: CollisionChoice = "keep"
+OVERWRITE: CollisionChoice = "overwrite"
 RENAME: CollisionChoice = "rename"
-COLLISION_CHOICES: tuple[CollisionChoice, ...] = (OVERWRITE, KEEP, RENAME)
+COLLISION_CHOICES: tuple[CollisionChoice, ...] = (KEEP, OVERWRITE, RENAME)
 
 #: Picks sections from those on offer. Given the available sections, returns the
 #: chosen ones. Order and de-duplication are core's job, not the picker's.

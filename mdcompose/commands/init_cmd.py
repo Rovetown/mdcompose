@@ -7,6 +7,7 @@ directory untouched rather than half-composed.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
 from typing import Annotated
 
@@ -17,6 +18,7 @@ from mdcompose.core import config as config_module
 from mdcompose.core import manifest as manifest_module
 from mdcompose.core import platform as platform_module
 from mdcompose.core import snippets as snippets_module
+from mdcompose.core import targets as targets_module
 from mdcompose.core.config import Mode
 from mdcompose.core.exit_codes import EXIT_ATTENTION, AttentionError
 from mdcompose.core.output import OutputContext
@@ -192,7 +194,7 @@ def _validated_mode(raw: str | None) -> Mode | None:
         raise AttentionError(
             f"--mode must be '{composition.IMPORT}' or '{composition.COPY}', found '{raw}'"
         )
-    return raw  # type: ignore[return-value]
+    return raw
 
 
 def _generated_by() -> str:
@@ -249,7 +251,7 @@ def _run_picker(
     for snippet in available:
         grouped.setdefault(snippet.category or "uncategorized", []).append(snippet)
 
-    choices: list[object] = []
+    choices: list[questionary.Choice] = []
     for category in sorted(grouped):
         choices.append(questionary.Separator(f"-- {category} --"))
         for snippet in grouped[category]:
@@ -268,7 +270,7 @@ def _run_picker(
     return tuple(answer)
 
 
-def _mode_asker(output: OutputContext, accept: bool):  # noqa: ANN202 - a closure or None
+def _mode_asker(output: OutputContext, accept: bool) -> Callable[[], Mode] | None:
     """Return a callable that asks for the mode, or None when nobody can be asked."""
     if accept or output.json_mode or not is_interactive():
         return None
@@ -383,19 +385,13 @@ def _confirm_foreign(
     output.info("this manifest was not composed on this machine. It would write:")
     for target in prepared.targets:
         output.info(f"  {target.relative_path}:")
-        output.content(_indent(target.content))
+        output.content_indented(target.content, empty="    (empty)")
     return confirm(
         output,
         "compose these files from the manifest?",
         assume_yes=accept,
         flag="--yes",
     )
-
-
-def _indent(text: str) -> str:
-    if not text.strip():
-        return "    (empty)"
-    return "\n".join(f"    {line}" for line in text.rstrip("\n").split("\n"))
 
 
 def _drift_choices(
@@ -422,7 +418,7 @@ def _drift_choices(
         answer = prompt_choice(
             output,
             f"{entry.path.name}",
-            options=(init_ops.KEEP, init_ops.OVERWRITE, init_ops.ABORT),
+            options=init_ops.DRIFT_CHOICES,
             default=init_ops.KEEP,
             flag="--on-drift",
         )
@@ -437,18 +433,17 @@ def _show_drift(output: OutputContext, target: init_ops.FileTarget | None) -> No
     result = managed_block.read_blocks(target.path)
     block = result.find(target.block_id)
     output.info("  currently:")
-    output.content(_indent("" if block is None else block.content))
+    output.content_indented("" if block is None else block.content, empty="    (empty)")
     output.info("  would become:")
-    output.content(_indent(target.content))
+    output.content_indented(target.content, empty="    (empty)")
 
 
 def _validated_drift_choice(candidate: str) -> init_ops.DriftChoice:
-    allowed = (init_ops.KEEP, init_ops.OVERWRITE, init_ops.ABORT)
-    if candidate not in allowed:
+    if candidate not in init_ops.DRIFT_CHOICES:
         raise AttentionError(
-            f"--on-drift must be one of {', '.join(allowed)}, found '{candidate}'"
+            f"--on-drift must be one of {', '.join(init_ops.DRIFT_CHOICES)}, found '{candidate}'"
         )
-    return candidate  # type: ignore[return-value]
+    return candidate
 
 
 def _report(
@@ -522,7 +517,7 @@ def _init_global(
     composed = composition.compose(
         selection,
         mode=resolved_mode,
-        import_target=init_ops._relative_posix(agents_path, claude_path.parent),
+        import_target=init_ops.relative_import_target(agents_path, claude_path.parent),
     )
 
     wrote = []
@@ -563,8 +558,6 @@ def _project_to_targets(
     Failures are isolated: one bad target does not stop the others, and the run
     reports a non-zero outcome so the condition is not swallowed.
     """
-    from mdcompose.core import targets as targets_module
-
     if not configuration.registered_global_targets:
         return
     drifted = targets_module.drifted_targets(configuration, canonical_content)
@@ -586,20 +579,21 @@ def _project_to_targets(
 
 
 def _target_drift_decision(
-    output: OutputContext, drifted: tuple, accept: bool
-) -> str:
-    from mdcompose.core import targets as targets_module
-
+    output: OutputContext,
+    drifted: tuple[config_module.TargetEntry, ...],
+    accept: bool,
+) -> targets_module.DriftChoice:
     if accept:
         return targets_module.OVERWRITE
     names = ", ".join(entry.label for entry in drifted)
-    return prompt_choice(
+    answer = prompt_choice(
         output,
         f"targets edited by hand ({names})",
         options=targets_module.DRIFT_CHOICES,
         default=targets_module.KEEP,
         flag="--yes",
     )
+    return answer  # type: ignore[return-value]
 
 
 def _resolve_global_agents_path(

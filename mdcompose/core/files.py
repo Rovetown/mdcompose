@@ -16,6 +16,7 @@ decisions hold each other up.
 from __future__ import annotations
 
 import hashlib
+import os
 from pathlib import Path
 
 from mdcompose.core.exit_codes import AttentionError
@@ -155,3 +156,17 @@ def path_exists(path: Path) -> bool:
         return path.exists()
     except (OSError, ValueError):
         return False
+
+
+def normalized_path(path: Path) -> str:
+    """Return path in the form two references to the same file always share.
+
+    Case-folded and fully resolved, falling back to an absolute but unresolved
+    path when the target cannot be resolved. For comparing two paths, never for
+    storing one.
+    """
+    try:
+        resolved = path.resolve()
+    except OSError:
+        resolved = path.absolute()
+    return os.path.normcase(str(resolved))
