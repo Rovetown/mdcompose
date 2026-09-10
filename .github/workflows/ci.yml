@@ -175,15 +175,14 @@ jobs:
           /tmp/fresh/bin/mdcompose --version
           /tmp/fresh/bin/mdcompose doctor
 
-  hooks:
-    # Runs the same .pre-commit-config.yaml a contributor runs locally, so a
-    # missed hook install cannot let a violation through. When the repository is
-    # public this job is deleted and pre-commit.ci takes over (running both
-    # would double every check). The commitizen hook is commit-msg only, so it
-    # does not run here; the "commits" job below covers the message check.
-    name: pre-commit
+  workflows:
+    # The two workflow-file linters that pre-commit.ci cannot run in its sandbox
+    # (actionlint fetches a binary, zizmor ships as a compiled tool), run here
+    # from pinned releases instead. Everything else in .pre-commit-config.yaml
+    # is left to pre-commit.ci; those two are listed in its `ci.skip`.
+    name: workflow lint
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
         with:
@@ -195,17 +194,27 @@ jobs:
           enable-cache: true
           cache-dependency-glob: uv.lock
 
-      - name: Sync the locked environment
-        run: uv sync --locked
+      - name: Install actionlint
+        env:
+          # renovate: datasource=github-releases depName=rhysd/actionlint
+          ACTIONLINT_VERSION: 1.7.12
+        run: |
+          curl -sSfL "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz" \
+            | sudo tar -xz -C /usr/local/bin actionlint
 
-      - name: Cache the pre-commit hook environments
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/pre-commit
-          key: pre-commit-${{ hashFiles('.pre-commit-config.yaml') }}
+      - name: actionlint
+        run: actionlint -color
 
-      - name: Run every hook
-        run: uv run --no-sync pre-commit run --all-files --show-diff-on-failure
+      - name: zizmor
+        env:
+          # renovate: datasource=pypi depName=zizmor
+          ZIZMOR_VERSION: 1.30.1
+        run: uv tool run "zizmor==${ZIZMOR_VERSION}" .
+
+      - name: check-github-workflows
+        run: >-
+          uv tool run --from check-jsonschema
+          check-jsonschema --builtin-schema github-workflows .github/workflows/*.yml
 
   commits:
     # Every commit on a pull request branch must be a Conventional Commit, so
@@ -267,7 +276,7 @@ jobs:
     # weaken the gate, so the list is deliberately explicit.
     name: all green
     if: always()
-    needs: [test, lint, coverage, ascii, build, hooks, commits, gitleaks]
+    needs: [test, lint, coverage, ascii, build, workflows, commits, gitleaks]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:

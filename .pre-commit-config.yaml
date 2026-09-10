@@ -13,14 +13,14 @@
 # here: one would fight git's own normalization on a Windows working tree.
 
 ci:
-  # When the repo is public and pre-commit.ci is enabled, it applies this block:
-  # push autofixes back to the PR branch and open a weekly hook-autoupdate PR.
+  # pre-commit.ci runs this config on every pull request: it pushes autofixes
+  # back to the branch and opens a weekly hook-autoupdate PR.
   autofix_prs: true
   autoupdate_schedule: weekly
-  # actionlint fetches a binary and zizmor needs a Rust toolchain; if either
-  # cannot run in the pre-commit.ci sandbox, move its id here and keep it in the
-  # self-hosted "hooks" job or a dedicated workflow.
-  skip: []
+  # actionlint fetches a binary and zizmor ships as a compiled tool; neither
+  # runs in the pre-commit.ci sandbox. Both run instead as the "workflow lint"
+  # job in ci.yml, from pinned releases.
+  skip: [actionlint, zizmor]
 
 default_install_hook_types: [pre-commit, commit-msg]
 
