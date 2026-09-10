@@ -1,0 +1,82 @@
+name: bump
+
+# The release button. Run this from the Actions tab and pick a channel:
+#
+#   stable -> a stable release   (0.3.1 -> 0.3.2 / 0.4.0 / 1.0.0, from the commits)
+#   alpha  -> 0.4.0a1, then a2, ...   feature-incomplete, breakage expected
+#   beta   -> 0.4.0b1, ...            feature-complete, bug hunting
+#   rc     -> 0.4.0rc1, ...           believed shippable
+#
+# Run it again with "stable" to promote the current pre-release to the final
+# version. cz bump derives the number from the Conventional Commits since
+# the last tag, rewrites [project].version and CHANGELOG.md, commits, and pushes
+# the tag that release.yml publishes on. You never type a version.
+#
+# Requires a repository secret RELEASE_TOKEN: a fine-grained PAT (or GitHub App
+# token) with contents:write. The built-in GITHUB_TOKEN cannot be used here,
+# because a tag it pushes does not trigger release.yml and its push is blocked by
+# branch protection. See TODO.md, "The bump.yml PAT wrinkle".
+
+on:
+  workflow_dispatch:
+    inputs:
+      prerelease:
+        description: Release channel
+        type: choice
+        default: stable
+        options:
+          - stable
+          - alpha
+          - beta
+          - rc
+
+# Never let two bumps run at once.
+concurrency:
+  group: bump
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  bump:
+    name: bump version, changelog and tag
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # A release comes only off the mainline.
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history so cz bump can read every commit since the last tag,
+          # and the PAT so the pushed commit and tag are not blocked by branch
+          # protection and the tag triggers release.yml.
+          fetch-depth: 0
+          token: ${{ secrets.RELEASE_TOKEN }}
+          persist-credentials: true
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Sync the locked environment
+        run: uv sync --locked
+
+      - name: Identify the committer
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Bump
+        env:
+          PRERELEASE: ${{ inputs.prerelease }}
+        run: |
+          if [ "$PRERELEASE" = "stable" ]; then
+            uv run --no-sync cz bump --yes --changelog
+          else
+            uv run --no-sync cz bump --yes --changelog --prerelease "$PRERELEASE"
+          fi
+
+      - name: Push the bump commit and the tag
+        run: git push --follow-tags origin HEAD:main

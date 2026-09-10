@@ -1,0 +1,28 @@
+name: Feature request
+description: Suggest a capability or a change
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Read the "Deliberate non-goals" section of AGENTS.md first: a few things
+        are excluded on purpose, with the reasoning.
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What are you trying to do that mdcompose makes hard or impossible?
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: The change you have in mind
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you considered
+    validations:
+      required: false

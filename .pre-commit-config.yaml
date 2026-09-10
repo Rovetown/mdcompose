@@ -1,0 +1,78 @@
+# Runs the project's checks before a commit lands, so a violation fails on the
+# developer's machine and not only in CI. Install once per clone:
+#
+#     uv run pre-commit install --install-hooks
+#     uv run pre-commit install --hook-type commit-msg
+#
+# pre-commit-uv (a dev dependency) makes the hook environments install with uv.
+# When the repository is public this file is also run by pre-commit.ci, which
+# auto-fixes pull requests and opens a weekly hook-autoupdate PR; at that point
+# the self-hosted "hooks" job in ci.yml is removed so the two do not both run.
+#
+# Line endings are owned by .gitattributes (eol=lf), so no line-ending hook is
+# here: one would fight git's own normalization on a Windows working tree.
+
+ci:
+  # When the repo is public and pre-commit.ci is enabled, it applies this block:
+  # push autofixes back to the PR branch and open a weekly hook-autoupdate PR.
+  autofix_prs: true
+  autoupdate_schedule: weekly
+  # actionlint fetches a binary and zizmor needs a Rust toolchain; if either
+  # cannot run in the pre-commit.ci sandbox, move its id here and keep it in the
+  # self-hosted "hooks" job or a dedicated workflow.
+  skip: []
+
+default_install_hook_types: [pre-commit, commit-msg]
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-toml
+      - id: check-json
+      - id: check-added-large-files
+      - id: check-merge-conflict
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.6
+    hooks:
+      - id: ruff-check
+        args: [--fix]
+
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.1
+    hooks:
+      - id: gitleaks
+
+  - repo: https://github.com/rhysd/actionlint
+    rev: v1.7.12
+    hooks:
+      - id: actionlint
+
+  - repo: https://github.com/woodruffw/zizmor-pre-commit
+    rev: v1.30.1
+    hooks:
+      - id: zizmor
+
+  - repo: https://github.com/python-jsonschema/check-jsonschema
+    rev: 0.38.0
+    hooks:
+      - id: check-github-workflows
+
+  - repo: https://github.com/commitizen-tools/commitizen
+    rev: v4.18.0
+    hooks:
+      - id: commitizen
+        stages: [commit-msg]
+
+  - repo: local
+    hooks:
+      - id: ascii
+        name: plain ASCII in authored and generated files
+        entry: python scripts/check_ascii.py
+        language: python
+        types: [text]
+        exclude: ^(tests/fixtures/|uv\.lock$)

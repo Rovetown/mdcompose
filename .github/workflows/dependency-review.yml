@@ -1,0 +1,35 @@
+name: dependency review
+
+# On a pull request that changes dependencies, block the merge if it introduces
+# a known-vulnerable package or a copyleft licence. Complements
+# scripts/check_licenses.py (which runs on the resolved tree) by catching the
+# change at review time. Does nothing until the repository is on GitHub and a
+# pull request exists.
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    name: dependency review
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: moderate
+          # The DENY tier from scripts/check_licenses.py. An allow-list would
+          # reject a legitimate dependency whose SPDX string is spelled oddly;
+          # denying the copyleft families is the check that actually matters.
+          deny-licenses: GPL-2.0, GPL-2.0-only, GPL-2.0-or-later, GPL-3.0, GPL-3.0-only, GPL-3.0-or-later, LGPL-2.1, LGPL-3.0, AGPL-3.0, EUPL-1.2, SSPL-1.0

@@ -1,0 +1,271 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# The default token is read-only. No job here writes to the repository.
+permissions:
+  contents: read
+
+env:
+  # Colour is decided by TTY detection, and a runner is not a TTY. Setting this
+  # anyway keeps log output identical to what a piped run produces locally.
+  NO_COLOR: "1"
+
+jobs:
+  test:
+    # The full matrix runs on all three operating systems rather than only on
+    # Linux. Cross-platform path and encoding handling is what this project
+    # claims to do better than its neighbours, so it is the last thing that
+    # should be tested on one platform and assumed elsewhere.
+    name: test ${{ matrix.python }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python: ["3.11", "3.12", "3.13", "3.14"]
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Sync the locked environment
+        # --locked fails if uv.lock is out of date with pyproject.toml, so a
+        # dependency change that was not locked cannot pass CI unnoticed.
+        run: uv sync --locked --python ${{ matrix.python }}
+
+      - name: Run the test suite
+        run: uv run --no-sync pytest
+
+      - name: Smoke test the doctor command
+        # The suite covers doctor thoroughly, but only through the in-process
+        # entry point. This runs the installed console script the way a user
+        # does, which is what would have caught the Path.exists divergence
+        # between Python versions.
+        shell: bash
+        run: |
+          uv run --no-sync mdcompose --version
+          uv run --no-sync mdcompose doctor
+          uv run --no-sync mdcompose doctor --json > report.json
+          uv run --no-sync python -c "import json,pathlib; d=json.loads(pathlib.Path('report.json').read_text()); assert d['os'] in {'windows','macos','linux'}, d; assert d['paths'], d; print('doctor json ok on', d['os'])"
+
+      - name: Verify quiet mode reduces doctor to its exit code
+        shell: bash
+        run: |
+          output=$(uv run --no-sync mdcompose doctor --quiet)
+          if [ -n "$output" ]; then
+            echo "expected no stdout in quiet mode, got: $output"
+            exit 1
+          fi
+
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Sync the locked environment
+        run: uv sync --locked
+
+      - name: Run ruff
+        run: uv run --no-sync ruff check .
+
+      - name: Check dependency hygiene
+        # Unused, missing, or misplaced dependencies, inferred from the imports.
+        run: uv run --no-sync deptry .
+
+  ascii:
+    # This project requires every character it generates, and every character in
+    # its own documents, to be ASCII. The reason is not style: a Windows console
+    # on a cp1252 or cp437 code page cannot encode an emoji or an em dash, so
+    # emitting one raises an encoding error on a primary target platform. A rule
+    # that is only enforced by review stops being enforced. The same script runs
+    # as a pre-commit hook, so a violation fails locally before it is pushed.
+    name: ascii convention
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Check that sources and documents are plain ASCII
+        run: python3 scripts/check_ascii.py
+
+  build:
+    name: build and install
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Build the wheel and sdist
+        run: uv build
+
+      - name: Install the built wheel into a clean environment and run it
+        # Proves the package works as published, not only as an editable
+        # checkout. A missing file in the wheel would pass every other job.
+        shell: bash
+        run: |
+          uv venv --python 3.11 /tmp/fresh
+          uv pip install --python /tmp/fresh/bin/python dist/*.whl
+          /tmp/fresh/bin/mdcompose --version
+          /tmp/fresh/bin/mdcompose doctor
+
+  hooks:
+    # Runs the same .pre-commit-config.yaml a contributor runs locally, so a
+    # missed hook install cannot let a violation through. When the repository is
+    # public this job is deleted and pre-commit.ci takes over (running both
+    # would double every check). The commitizen hook is commit-msg only, so it
+    # does not run here; the "commits" job below covers the message check.
+    name: pre-commit
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Sync the locked environment
+        run: uv sync --locked
+
+      - name: Cache the pre-commit hook environments
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pre-commit
+          key: pre-commit-${{ hashFiles('.pre-commit-config.yaml') }}
+
+      - name: Run every hook
+        run: uv run --no-sync pre-commit run --all-files --show-diff-on-failure
+
+  commits:
+    # Every commit on a pull request branch must be a Conventional Commit, so
+    # the release-time version bump derived from those commits is trustworthy.
+    name: conventional commits
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Sync the locked environment
+        run: uv sync --locked
+
+      - name: Check every commit in the pull request
+        env:
+          RANGE: ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}
+        run: uv run --no-sync cz check --rev-range "$RANGE"
+
+  gitleaks:
+    # The pre-commit gitleaks hook only sees a working tree. This scans the full
+    # history, so a secret committed and then removed in a later commit is still
+    # caught. gitleaks-action is free for public repositories and personal
+    # accounts; a GitHub organisation needs a free GITLEAKS_LICENSE secret.
+    name: secret scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
+  all-green:
+    # The single check branch protection requires: it passes only if every job
+    # it needs passed or was legitimately skipped (commits is skipped outside a
+    # pull request). Adding a job above without adding it here is the one way to
+    # weaken the gate, so the list is deliberately explicit.
+    name: all green
+    if: always()
+    needs: [test, lint, ascii, build, hooks, commits, gitleaks]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Require every needed job to have passed
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "job results: $RESULTS"
+          for result in $RESULTS; do
+            case "$result" in
+              success|skipped) ;;
+              *) echo "a required job did not pass"; exit 1 ;;
+            esac
+          done
+
+  # DORMANT. ENABLE WHEN pytest-benchmark variance on the shared runner makes a
+  # real regression indistinguishable from noise. CodSpeed runs the benchmarks
+  # instrumented rather than wall-clock, so the numbers are stable across
+  # runners, and it posts the delta as a pull request check. Free for open
+  # source. To enable: add pytest-codspeed to a "benchmark" dependency group,
+  # write a benchmark suite under tests/, uncomment this job, and leave it out
+  # of the all-green needs list (benchmarks never block a merge).
+  #
+  # benchmarks:
+  #   name: benchmarks
+  #   runs-on: ubuntu-latest
+  #   timeout-minutes: 20
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #       with:
+  #         persist-credentials: false
+  #     - uses: astral-sh/setup-uv@v5
+  #       with:
+  #         enable-cache: true
+  #         cache-dependency-glob: uv.lock
+  #     - run: uv sync --locked --group benchmark
+  #     - uses: CodSpeedHQ/action@v3
+  #       with:
+  #         run: uv run --no-sync pytest --codspeed

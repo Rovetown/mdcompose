@@ -1,0 +1,53 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+sdist/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# Tooling caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+.tox/
+.nox/
+
+# Editors and OS
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Note: mdcompose.lock is deliberately NOT ignored. It is a committed, shared
+# manifest by design; it embeds resolved snippet content so a clone reproduces
+# the project with an empty library. See docs/core-contract.md section 9.
+
+# Generated supply-chain artifacts
+sbom/
+runtime-env/
+*.cdx.json
+*.cdx.xml
+*.spdx.json
+report.json
+runtime.txt
+all.txt

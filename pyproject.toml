@@ -1,0 +1,155 @@
+[build-system]
+requires = ["hatchling>=1.24"]
+build-backend = "hatchling.build"
+
+[project]
+name = "mdcompose"
+version = "0.1.0.dev0"
+description = "Manage CLAUDE.md and AGENTS.md, and compose them from a personal snippet library"
+readme = "README.md"
+# Every dependency declares >=3.10 and the suite passes on 3.10, so this floor
+# is a policy choice, not a technical one: 3.10 reaches end of life in October
+# 2026. See the decisions log in TODO.md.
+requires-python = ">=3.11"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Rovetown" }]
+keywords = ["claude", "agents.md", "claude.md", "cli", "ai-coding"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Topic :: Software Development :: Build Tools",
+]
+dependencies = [
+  # The CLI error boundary catches typer.TyperException to reach the usage-error
+  # family, which is only exposed since Typer vendored Click as a private
+  # module. An older Typer would not raise it and the boundary would silently
+  # stop catching usage errors, so this lower bound is load-bearing.
+  "typer>=0.27,<1.0",
+  "platformdirs>=4.2,<5.0",
+  "pyyaml>=6.0,<7.0",
+  "questionary>=2.1.1",
+]
+
+[project.urls]
+Homepage = "https://github.com/Rovetown/mdcompose"
+Issues = "https://github.com/Rovetown/mdcompose/issues"
+
+[project.scripts]
+mdcompose = "mdcompose.cli:run"
+
+[dependency-groups]
+dev = [
+  "pytest>=8.2",
+  "ruff>=0.6",
+  "pre-commit>=4",
+  "pre-commit-uv>=4",
+  "commitizen>=4.13",
+  # For the roadmap quality pass. Only pytest-randomly is active by default (it
+  # randomises test order); the rest are inert until invoked or until a test
+  # imports them. See "Codebase-wide quality pass" in TODO.md.
+  "mypy>=1.11",
+  "pytest-cov>=5",
+  "pytest-randomly>=3.15",
+  "hypothesis>=6.100",
+  "deptry>=0.20",
+  "interrogate>=1.7",
+]
+# Mutation testing, run weekly by .github/workflows/mutation.yml and never as
+# part of the normal suite. Kept out of the dev group so a routine `uv sync`
+# does not pull libcst and its build chain.
+mutation = [
+  "mutmut>=3.7,<4",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["mdcompose"]
+
+[tool.commitizen]
+# The release is driven by `cz bump`, dispatched from .github/workflows/bump.yml.
+# It reads the Conventional Commits since the last tag, computes the next PEP 440
+# version, writes it into [project].version, regenerates the changelog, commits,
+# and tags. Nothing here types a version number. See docs/versioning-explained.md.
+name = "cz_conventional_commits"
+version_provider = "pep621"
+tag_format = "v$version"
+# Pre-1.0: a breaking change bumps the minor, not the major.
+major_version_zero = true
+annotated_tag = true
+update_changelog_on_bump = true
+# Fold the alpha/beta/rc changelog entries into the final release entry.
+changelog_merge_prerelease = true
+
+[tool.deptry.package_module_name_map]
+# mutmut is a CLI tool, never imported; spell out the mapping so deptry does not
+# print an assumption warning when it is not installed (the lint job omits the
+# mutation group).
+mutmut = "mutmut"
+
+[tool.mypy]
+# The target for the quality pass. The suite is not type-clean yet, so this is
+# not wired into CI: run `uv run mypy` by hand during that pass.
+python_version = "3.11"
+strict = true
+files = ["mdcompose"]
+
+[tool.coverage.run]
+source = ["mdcompose"]
+branch = true
+
+[tool.coverage.report]
+exclude_also = [
+  "if TYPE_CHECKING:",
+  "raise NotImplementedError",
+]
+
+[tool.interrogate]
+# Ratchet up during the quality pass; 0 so a stray `uv run interrogate` reports
+# rather than fails today.
+fail-under = 0
+
+[tool.mutmut]
+# Mutate the logic only. The whole suite is the check, since core/ is what it
+# exercises. See .github/workflows/mutation.yml.
+source_paths = ["mdcompose/core/"]
+pytest_add_cli_args_test_selection = ["tests/"]
+
+[tool.commitizen.change_type_map]
+# Keep the section names the existing CHANGELOG.md already uses (Keep a Changelog)
+# rather than commitizen's defaults (Feat, Fix).
+feat = "Added"
+fix = "Fixed"
+perf = "Changed"
+refactor = "Changed"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q --strict-markers --strict-config"
+xfail_strict = true
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = [
+  "E", "F", "W",      # pycodestyle, pyflakes
+  "I",                # isort
+  "UP",               # pyupgrade
+  "B",                # bugbear
+  "SIM",              # simplify
+  "PTH",              # use pathlib
+  "RUF",              # ruff-specific
+  "ANN",              # annotations
+  "ARG",              # unused arguments
+  "TID252",           # no relative imports
+]
+ignore = [
+  "ANN401",           # allow Any where genuinely needed
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["ANN201", "ANN001", "ARG001"]

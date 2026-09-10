@@ -1,0 +1,11 @@
+# Normalize every text file to LF in the repository and in working copies.
+# This project's whole design turns on line-ending correctness, so it must not
+# depend on a contributor's core.autocrlf setting.
+* text=auto eol=lf
+
+# Test fixtures that deliberately carry a specific encoding or line ending must
+# survive checkout byte for byte, otherwise the tests that prove normalization
+# works would be testing normalized inputs.
+tests/fixtures/**/*.crlf.md  -text
+tests/fixtures/**/*.bom.md   -text
+tests/fixtures/**/*.cp1252.md -text

@@ -1,0 +1,55 @@
+name: mutation testing
+
+# Mutation testing: mutmut mutates mdcompose/core (flips a comparison, deletes a
+# line, ...) and runs the suite against each mutant. A mutant that survives is
+# behaviour the tests do not actually check. It runs the whole suite once per
+# mutant, so this is a weekly cron and a manual button, never a required check
+# and never on a pull request. Read the job summary to see where freshly written
+# code needs more tests; the survivors feed the TDD coverage review in the
+# roadmap quality pass.
+
+on:
+  schedule:
+    - cron: "0 4 * * 1"
+  workflow_dispatch:
+
+concurrency:
+  group: mutation
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  mutmut:
+    name: mutmut over core
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    # Reporting only. Nothing depends on this job and it never blocks a merge.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Sync the locked environment with the mutation group
+        run: uv sync --locked --group mutation
+
+      - name: Run mutmut
+        continue-on-error: true
+        run: uv run --no-sync mutmut run
+
+      - name: Write the results to the job summary
+        if: always()
+        run: |
+          {
+            echo '## mutmut results'
+            echo '```'
+            uv run --no-sync mutmut results || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

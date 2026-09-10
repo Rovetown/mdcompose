@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question or discussion
+    url: https://github.com/Rovetown/mdcompose/discussions
+    about: Usage questions and early ideas that are not yet a bug or a concrete request.

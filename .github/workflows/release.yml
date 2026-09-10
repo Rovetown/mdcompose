@@ -1,0 +1,151 @@
+name: release
+
+# Publishing is driven by a version tag pushed by bump.yml. This workflow
+# builds the distributions and the SBOM, then:
+#
+#   stable tag (v0.4.0):  TestPyPI -> PyPI (Trusted Publishing) -> GitHub Release
+#   pre-release (v0.4.0a1, b1, rc1):  TestPyPI only
+#
+# A pre-release is for testers, so it never reaches the real index or gets a
+# GitHub Release. Install one with:
+#   pip install -i https://test.pypi.org/simple/ mdcompose==0.4.0a1
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+# Never cancel a release in progress.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  classify:
+    name: classify the tag
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      stable: ${{ steps.check.outputs.stable }}
+    steps:
+      - id: check
+        # A bare MAJOR.MINOR.PATCH tag is a stable release. Anything else
+        # (a1, b2, rc1, .dev, ...) or a workflow_dispatch off a branch is
+        # treated as a pre-release and stays on TestPyPI.
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          if echo "$TAG" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+            stable=true
+          else
+            stable=false
+          fi
+          echo "tag $TAG -> stable=$stable"
+          echo "stable=$stable" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: build distributions
+    needs: classify
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          # Full history and tags for the build and the release notes.
+          fetch-depth: 0
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          # No dependency cache on the release path: a poisoned cache could
+          # taint a published artifact, and a release runs rarely enough that
+          # the saved time is not worth the exposure (zizmor cache-poisoning).
+          enable-cache: false
+
+      - name: Build the sdist and wheel
+        run: uv build
+
+      - name: Check the distributions render on PyPI
+        run: uvx twine check dist/*
+
+      - name: Generate the CycloneDX SBOM
+        run: |
+          uv venv --python 3.11 runtime-env
+          uv pip install --python runtime-env/bin/python dist/*.whl
+          uvx --from cyclonedx-bom cyclonedx-py environment runtime-env \
+            --output-format JSON --output-file mdcompose-runtime.cdx.json
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: |
+            dist/*
+            mdcompose-runtime.cdx.json
+
+  testpypi:
+    name: publish to TestPyPI
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: testpypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: .
+      - name: Publish
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+          packages-dir: dist/
+
+  pypi:
+    name: publish to PyPI
+    needs: [classify, testpypi]
+    # A pre-release stops at TestPyPI.
+    if: needs.classify.outputs.stable == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: .
+      - name: Publish
+        # Generates and uploads PEP 740 attestations by default when publishing
+        # through Trusted Publishing.
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist/
+
+  github-release:
+    name: github release
+    needs: [classify, pypi]
+    if: needs.classify.outputs.stable == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: artifacts
+      - name: Create the release
+        # gh is preinstalled on the runner, so no third-party action is needed
+        # on the release-critical path (zizmor superfluous-actions). The tag
+        # name comes from an environment variable, never interpolated into the
+        # shell, and --verify-tag refuses to publish if the tag is not on the
+        # remote.
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: gh release create "$GITHUB_REF_NAME" artifacts/* --generate-notes --verify-tag

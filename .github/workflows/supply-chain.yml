@@ -1,0 +1,151 @@
+name: supply chain
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    paths:
+      - pyproject.toml
+      - uv.lock
+      - .github/workflows/supply-chain.yml
+      - scripts/check_licenses.py
+  schedule:
+    # Weekly, so a newly disclosed advisory in a pinned dependency surfaces
+    # without waiting for the next code change.
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  licenses:
+    name: dependency licenses
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Runtime dependency licenses (hard fail outside the allowlist)
+        # Runtime licenses are what constrains the license this project ships
+        # under, so an unexpected one here fails the build.
+        run: |
+          uv sync --locked --no-dev
+          uv run --no-sync python scripts/check_licenses.py
+
+      - name: Development dependency licenses (report only)
+        # Dev-only tool licenses do not reach a user who installs the package.
+        run: |
+          uv sync --locked
+          uv run --no-sync python scripts/check_licenses.py --report
+
+  audit:
+    name: known vulnerabilities
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: pip-audit the runtime dependency set
+        run: |
+          uv export --no-dev --no-emit-project --format requirements-txt > runtime.txt
+          uvx pip-audit --strict --progress-spinner off -r runtime.txt
+
+      - name: pip-audit the full dependency set
+        run: |
+          uv export --no-emit-project --format requirements-txt > all.txt
+          uvx pip-audit --strict --progress-spinner off -r all.txt
+
+  osv:
+    # A third advisory source next to pip-audit (PyPI advisory DB) and the grype
+    # SBOM scan below. OSV.dev aggregates GHSA, PYSEC and others and reads
+    # uv.lock directly, so it can catch an advisory the other two miss. Fails
+    # the build on any finding.
+    name: osv scanner
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: google/osv-scanner-action/osv-scanner-action@v2.5.1
+        with:
+          scan-args: >-
+            --lockfile=uv.lock
+
+  sbom:
+    name: sbom
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Build a runtime-only environment from the wheel
+        run: |
+          uv build
+          uv venv --python 3.11 runtime-env
+          uv pip install --python runtime-env/bin/python dist/*.whl
+
+      - name: Generate the CycloneDX SBOM
+        # cyclonedx-py is Python-native: it maps PEP 639 fields and Trove
+        # license classifiers to a license entry, which syft's generic
+        # cataloger does not, so every dependency's license is populated.
+        run: |
+          uvx --from cyclonedx-bom cyclonedx-py environment runtime-env \
+            --output-format JSON \
+            --output-file mdcompose-runtime.cdx.json
+          uvx --from cyclonedx-bom cyclonedx-py environment runtime-env \
+            --output-format XML \
+            --output-file mdcompose-runtime.cdx.xml
+
+      - name: Fail if any dependency has no license in the SBOM
+        run: |
+          python - <<'PY'
+          import json, sys
+          doc = json.load(open("mdcompose-runtime.cdx.json"))
+          missing = [
+              c["name"]
+              for c in doc.get("components", [])
+              if not c.get("licenses")
+          ]
+          if missing:
+              print("components with no license in the SBOM:", ", ".join(missing))
+              sys.exit(1)
+          print(f"{len(doc.get('components', []))} components, all licensed")
+          PY
+
+      - name: Upload the SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: mdcompose-runtime.cdx.*
+
+      - name: Scan the SBOM for vulnerabilities
+        uses: anchore/scan-action@v6
+        with:
+          sbom: mdcompose-runtime.cdx.json
+          fail-build: true
+          severity-cutoff: medium
