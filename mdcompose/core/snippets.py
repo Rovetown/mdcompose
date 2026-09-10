@@ -313,9 +313,14 @@ def render(snippet: Snippet) -> str:
 def write(library: Path, snippet: Snippet) -> Path:
     """Write a snippet into the library, creating the directory if needed.
 
-    The only thing mdcompose ever writes into the library is a snippet file.
+    The only thing mdcompose ever writes into the library is a snippet file. A
+    symlink at the target is refused rather than followed: it is an entry
+    mdcompose did not create, and writing through it would land the content
+    outside the library.
     """
     target = path_for(library, snippet.id)
+    if target.is_symlink():
+        raise AttentionError(f"{target}: refusing to write a snippet through a symlink")
     target.parent.mkdir(parents=True, exist_ok=True)
     files.write_text(target, render(snippet), line_ending=files.line_ending_for(target))
     return target

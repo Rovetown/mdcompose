@@ -170,3 +170,53 @@ def test_changed_content_is_written_in_the_existing_convention(tmp_path: Path) -
     target.write_bytes(BODY.replace("\n", "\r\n").encode("utf-8"))
     assert files.write_if_changed(target, "# Different\nText.\n") is True
     assert b"\r\n" in target.read_bytes()
+
+
+# --- hardening: read size cap ---
+
+
+def test_a_file_over_the_read_limit_is_refused(tmp_path: Path) -> None:
+    target = tmp_path / "huge.md"
+    target.write_bytes(b"x" * (files.MAX_READ_BYTES + 1))
+    with pytest.raises(AttentionError, match="limit"):
+        files.read_text(target)
+
+
+def test_a_file_at_the_read_limit_is_allowed(tmp_path: Path) -> None:
+    target = tmp_path / "big.md"
+    target.write_bytes(b"x" * files.MAX_READ_BYTES)
+    assert len(files.read_text(target)) == files.MAX_READ_BYTES
+
+
+# --- hardening: writes are atomic and do not follow a symlink ---
+
+
+def test_a_failed_write_leaves_the_previous_file_intact(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    target = tmp_path / "keep.md"
+    target.write_text("original\n", encoding="utf-8")
+
+    def boom(self: Path, _other: Path) -> None:
+        raise OSError(13, "denied")
+
+    monkeypatch.setattr(Path, "replace", boom)
+    with pytest.raises(AttentionError):
+        files.write_text(target, "replacement\n")
+    assert target.read_text(encoding="utf-8") == "original\n"
+    assert list(tmp_path.iterdir()) == [target]  # scratch file cleaned up
+
+
+def test_a_write_replaces_a_symlink_rather_than_following_it(tmp_path: Path) -> None:
+    outside = tmp_path / "outside.md"
+    outside.write_text("must not change\n", encoding="utf-8")
+    link = tmp_path / "AGENTS.md"
+    try:
+        link.symlink_to(outside)
+    except OSError:
+        pytest.skip("symlink creation not permitted here")
+
+    files.write_text(link, "composed\n")
+    assert outside.read_text(encoding="utf-8") == "must not change\n"
+    assert not link.is_symlink()
+    assert link.read_text(encoding="utf-8") == "composed\n"

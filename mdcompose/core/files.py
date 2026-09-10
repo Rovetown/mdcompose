@@ -25,6 +25,11 @@ LF = "\n"
 CRLF = "\r\n"
 BOM = "\ufeff"
 
+#: The largest file mdcompose will read into memory. Every file it handles is a
+#: markdown config document, kilobytes at most; anything past this is a mistake
+#: or a hostile input, and refusing it is better than an out-of-memory kill.
+MAX_READ_BYTES = 16 * 1024 * 1024
+
 
 def read_text(path: Path) -> str:
     """Return the file's text with any byte order mark removed.
@@ -32,12 +37,22 @@ def read_text(path: Path) -> str:
     Line endings are returned exactly as stored, so a caller can write the file
     back in its original convention. Use :func:`normalize` before comparing.
 
-    Raises ``AttentionError`` if the file is missing, unreadable, or not valid
-    UTF-8. Invalid bytes are never replaced with substitution characters,
-    because hashing corrupted content is worse than refusing to read it.
+    Raises ``AttentionError`` if the file is missing, larger than
+    :data:`MAX_READ_BYTES`, unreadable, or not valid UTF-8. Invalid bytes are
+    never replaced with substitution characters, because hashing corrupted
+    content is worse than refusing to read it.
     """
     if not path.is_file():
         raise AttentionError(f"{path}: not a readable file")
+    try:
+        size = path.stat().st_size
+    except OSError as exc:
+        raise AttentionError(f"{path}: cannot be read ({exc.strerror})") from exc
+    if size > MAX_READ_BYTES:
+        raise AttentionError(
+            f"{path}: {size} bytes is past the {MAX_READ_BYTES}-byte limit; "
+            "mdcompose reads text config files, not files this size"
+        )
     try:
         data = path.read_bytes()
     except OSError as exc:
@@ -106,17 +121,24 @@ def line_ending_for(path: Path) -> str:
 
 
 def write_text(path: Path, text: str, *, line_ending: str = LF) -> None:
-    """Write text to path as UTF-8 with no byte order mark.
+    """Write text to path as UTF-8 with no byte order mark, atomically.
 
+    The bytes go to a scratch file in the same directory and are then renamed
+    over the target, so an interrupted write leaves the previous file intact
+    rather than a truncated one, and no reader ever sees a half-written file.
     A byte order mark is never written, including when the file being replaced
-    had one.
+    had one. When the target is a symlink the link is replaced by a real file
+    rather than followed, so a write cannot escape the directory it names.
     """
     body = normalize(text)
     if line_ending == CRLF:
         body = body.replace(LF, CRLF)
+    scratch = path.with_name(f".{path.name}.mdcompose-{os.getpid()}")
     try:
-        path.write_bytes(body.encode("utf-8"))
+        scratch.write_bytes(body.encode("utf-8"))
+        scratch.replace(path)
     except OSError as exc:
+        scratch.unlink(missing_ok=True)
         raise AttentionError(f"{path}: cannot be written ({exc.strerror})") from exc
 
 

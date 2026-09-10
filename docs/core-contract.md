@@ -225,6 +225,12 @@ the corruption, which is worse than refusing to read it.
 A missing file, a path that is not a file, and a file that cannot be read for
 permission reasons are all refused, naming the path.
 
+A file past a fixed size limit is refused rather than read into memory. Every
+file mdcompose handles is a markdown config document, kilobytes at most; a file
+orders of magnitude larger is a mistake or a hostile input, and refusing it by
+name is better than an out-of-memory failure. The limit is generous enough that
+no real config file approaches it.
+
 Line endings are returned exactly as stored, so a caller can write the file back
 in its original convention.
 
@@ -261,6 +267,14 @@ difference. These two rules hold each other up: neither is correct alone.
 
 A write that would produce content equal to what the file already holds, under
 normalization, is detected and reported as no change needed.
+
+Every write is atomic. The bytes go to a scratch file in the same directory and
+are renamed over the target, so an interrupted write leaves the previous file
+whole rather than a truncated one, no reader ever sees a half-written file, and
+no scratch artifact remains after a failure. When the target is a symlink the
+link is replaced by a real file rather than written through, so a write cannot
+land outside the directory it names. This is not only the config: the same
+guarantee covers every managed file, the manifest, and every snippet.
 
 ## 6. The global config
 
@@ -318,10 +332,9 @@ naming no recognized field is refused rather than written as a field nothing
 reads, while an unrecognized field already in the file is still carried through
 every write.
 
-A write is atomic: the new content is written beside the target and renamed over
-it, so an interrupted write leaves the previous complete config and never a
-truncated one, and no temporary artifact remains after a failure. A shorter
-config replaces a longer one with no residue.
+Every write is atomic (5.3), which matters most here: a truncated config would
+lose the snippet library path, a worse failure than any this tool could report.
+A shorter config replaces a longer one with no residue.
 
 Unsetting a key removes it so the field falls back to its default or to not
 configured. Unsetting a key that is already absent changes nothing and is not an

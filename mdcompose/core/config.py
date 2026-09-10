@@ -444,19 +444,11 @@ def to_document(config: GlobalConfig) -> dict[str, object]:
 
 
 def write_config(config: GlobalConfig, path: Path) -> None:
-    """Write the config atomically, creating its directory on first write.
+    """Write the config, creating its directory on first write.
 
-    Written to a temporary file beside the target and renamed over it, so an
-    interrupted write leaves the previous complete config rather than a truncated
-    one. A truncated config would lose the snippet library path, which is a worse
-    failure than any this tool could report.
+    ``files.write_text`` is atomic, so an interrupted write leaves the previous
+    complete config rather than a truncated one. That matters more here than
+    anywhere: a truncated config would lose the snippet library path.
     """
     path.parent.mkdir(parents=True, exist_ok=True)
-    rendered = render(config)
-    scratch = path.with_name(f"{path.name}.writing")
-    try:
-        files.write_text(scratch, rendered)
-        scratch.replace(path)
-    finally:
-        if files.path_exists(scratch):
-            scratch.unlink()
+    files.write_text(path, render(config))

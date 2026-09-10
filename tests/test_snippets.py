@@ -196,6 +196,22 @@ def test_reading_the_library_writes_nothing(tmp_path: Path) -> None:
     assert sorted(path.name for path in tmp_path.iterdir()) == before
 
 
+def test_writing_a_snippet_through_a_symlink_is_refused(tmp_path: Path) -> None:
+    library = tmp_path / "library"
+    library.mkdir()
+    outside = tmp_path / "outside.md"
+    outside.write_text("not a snippet\n", encoding="utf-8")
+    try:
+        (library / "planted.md").symlink_to(outside)
+    except OSError:
+        pytest.skip("symlink creation not permitted here")
+
+    snippet = snippets.parse(BODY_ONLY, "planted")
+    with pytest.raises(AttentionError, match="symlink"):
+        snippets.write(library, snippet)
+    assert outside.read_text(encoding="utf-8") == "not a snippet\n"
+
+
 def test_an_absent_library_is_empty_not_an_error(tmp_path: Path) -> None:
     absent = tmp_path / "never-created"
     assert snippets.load_library(absent) == ()

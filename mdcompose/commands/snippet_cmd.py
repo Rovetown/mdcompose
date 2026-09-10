@@ -18,7 +18,7 @@ from typing import Annotated
 import typer
 
 from mdcompose.core import config as config_module
-from mdcompose.core import library_ops
+from mdcompose.core import files, library_ops
 from mdcompose.core import manifest as manifest_module
 from mdcompose.core import platform as platform_module
 from mdcompose.core import snippets as snippets_module
@@ -184,14 +184,14 @@ def _edit_in_editor(path: Path) -> str | None:
             "no editor configured. Set VISUAL or EDITOR, or pass --content to "
             "supply the new contents directly."
         )
-    original = path.read_text(encoding="utf-8")
+    original = files.read_text(path)
     with tempfile.TemporaryDirectory() as scratch:
         draft = Path(scratch) / path.name
-        draft.write_text(original, encoding="utf-8")
+        files.write_text(draft, original)
         completed = subprocess.run([*shlex.split(editor), str(draft)], check=False)
         if completed.returncode != 0:
             raise AttentionError(f"editor exited with status {completed.returncode}")
-        edited = draft.read_text(encoding="utf-8")
+        edited = files.read_text(draft)
     return None if edited == original else edited
 
 
