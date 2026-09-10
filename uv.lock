@@ -893,7 +893,7 @@ wheels = [
 
 [[package]]
 name = "mdcompose"
-version = "0.1.0.dev0"
+version = "0.1.0a0"
 source = { editable = "." }
 dependencies = [
     { name = "platformdirs" },

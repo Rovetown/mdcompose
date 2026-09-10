@@ -78,5 +78,20 @@ jobs:
             uv run --no-sync cz bump --yes --changelog --prerelease "$PRERELEASE"
           fi
 
+      - name: Fold the refreshed lockfile into the bump commit
+        # cz bump rewrites [project].version but not uv.lock, which pins the
+        # project's own version. Left stale, every `uv sync --locked` downstream
+        # (CI, the release build) fails with "the lockfile needs to be updated".
+        # The bump commit and tag are still local here, so amend rather than add
+        # a follow-up commit, and re-point the annotated tag at the new commit.
+        run: |
+          uv lock
+          if ! git diff --quiet -- uv.lock; then
+            tag="$(git describe --tags --exact-match HEAD)"
+            git add uv.lock
+            git commit --amend --no-edit
+            git tag -f -a "$tag" -m "$tag"
+          fi
+
       - name: Push the bump commit and the tag
         run: git push --follow-tags origin HEAD:main
