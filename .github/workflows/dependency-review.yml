@@ -26,7 +26,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: actions/dependency-review-action@v4
+      - uses: actions/dependency-review-action@2031cfc080254a8a887f58cffee85186f0e49e48 # v4
         with:
           fail-on-severity: moderate
           # The DENY tier from scripts/check_licenses.py: the strong and linking

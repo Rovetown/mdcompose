@@ -1,14 +1,11 @@
 # zizmor configuration. https://docs.zizmor.sh/configuration/
 #
-# unpinned-uses is relaxed from the default hash-pin policy to ref-pin: an
-# action referenced by a tag (actions/checkout@v4) passes, one referenced by a
-# branch does not. Full commit-SHA pinning is deferred to Renovate's
-# helpers:pinGitHubActionDigests, which pins on its first run and then keeps the
-# digests current (see TODO.md, publishing pipeline). Tighten this back to
-# hash-pin once that has happened.
+# Every action must be pinned to a full commit SHA. Renovate's
+# helpers:pinGitHubActionDigests preset does the pinning and keeps the digests
+# current, so the `# vX` trailing comment stays readable.
 
 rules:
   unpinned-uses:
     config:
       policies:
-        "*": ref-pin
+        "*": hash-pin
