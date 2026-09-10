@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "mdcompose"
-version = "0.1.0.dev0"
+version = "0.1.0a0"
 description = "Manage CLAUDE.md and AGENTS.md, and compose them from a personal snippet library"
 readme = "README.md"
 # Every dependency declares >=3.10 and the suite passes on 3.10, so this floor
