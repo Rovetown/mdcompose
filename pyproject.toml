@@ -65,6 +65,15 @@ dev = [
 mutation = [
   "mutmut>=3.7,<4",
 ]
+# Benchmarks, run by the `benchmarks` job in ci.yml (CodSpeed) and by hand
+# locally with `uv run --group benchmark pytest tests/benchmarks`. Kept out of
+# the dev group so the normal suite does not pay for them. pytest-benchmark
+# gives the wall-clock fixture locally; pytest-codspeed swaps in instrumented
+# timing under `--codspeed` so CI numbers are stable across runners.
+benchmark = [
+  "pytest-benchmark>=5.0",
+  "pytest-codspeed>=3.0",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["mdcompose"]
@@ -134,7 +143,10 @@ refactor = "Changed"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-q --strict-markers --strict-config"
+# tests/benchmarks is excluded here so the normal suite stays fast and needs no
+# benchmark dependencies; run it with `uv run --group benchmark pytest
+# tests/benchmarks`.
+addopts = "-q --strict-markers --strict-config --ignore=tests/benchmarks"
 xfail_strict = true
 
 [tool.ruff]

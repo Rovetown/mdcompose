@@ -275,13 +275,13 @@ jobs:
             esac
           done
 
-  # DORMANT. ENABLE WHEN pytest-benchmark variance on the shared runner makes a
-  # real regression indistinguishable from noise. CodSpeed runs the benchmarks
-  # instrumented rather than wall-clock, so the numbers are stable across
-  # runners, and it posts the delta as a pull request check. Free for open
-  # source. To enable: add pytest-codspeed to a "benchmark" dependency group,
-  # write a benchmark suite under tests/, uncomment this job, and leave it out
-  # of the all-green needs list (benchmarks never block a merge).
+  # DORMANT, repo-gated. The suite (tests/benchmarks) and the `benchmark`
+  # dependency group both exist; what is missing is a CodSpeed project, which
+  # needs the GitHub repo. CodSpeed runs the benchmarks instrumented rather than
+  # wall-clock, so the numbers are stable across runners, and it posts the delta
+  # as a pull request check rather than failing hard. Free for open source. To
+  # enable: connect the repo at codspeed.io, uncomment this job, and leave it
+  # out of the all-green needs list (benchmarks never block a merge).
   #
   # benchmarks:
   #   name: benchmarks
@@ -298,4 +298,4 @@ jobs:
   #     - run: uv sync --locked --group benchmark
   #     - uses: CodSpeedHQ/action@v3
   #       with:
-  #         run: uv run --no-sync pytest --codspeed
+  #         run: uv run --no-sync pytest tests/benchmarks --codspeed

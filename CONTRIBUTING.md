@@ -8,7 +8,14 @@ conventions that CI enforces, and how a change gets from an idea to `main`.
     uv sync                     set up or refresh the environment
     uv run pytest               the full suite
     uv run ruff check .         lint
+    uv run mypy                 static types (strict)
     uv run mdcompose doctor     sanity-check path resolution on your machine
+
+The benchmark suite is separate and needs its own dependency group:
+
+    uv run --group benchmark pytest tests/benchmarks
+
+It is excluded from `uv run pytest`. See `docs/benchmarks.md` for the baseline.
 
 Install the git hooks once per clone:
 
