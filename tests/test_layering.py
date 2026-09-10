@@ -14,10 +14,14 @@ from pathlib import Path
 
 import pytest
 
+import mdcompose.commands
 import mdcompose.core
 
 CORE_ROOT = Path(mdcompose.core.__file__).parent
 CORE_MODULES = sorted(module.name for module in pkgutil.iter_modules([str(CORE_ROOT)]))
+
+COMMANDS_ROOT = Path(mdcompose.commands.__file__).parent
+COMMAND_MODULES = sorted(module.name for module in pkgutil.iter_modules([str(COMMANDS_ROOT)]))
 
 
 def imported_names(source: Path) -> set[str]:
@@ -53,6 +57,18 @@ def test_core_never_imports_the_cli_framework(name: str) -> None:
     imports = imported_names(CORE_ROOT / f"{name}.py")
     forbidden = {module.split(".")[0] for module in imports} & {"typer", "click", "rich"}
     assert not forbidden, f"mdcompose.core.{name} imports {sorted(forbidden)}"
+
+
+@pytest.mark.parametrize("name", COMMAND_MODULES)
+def test_command_modules_never_import_the_cli(name: str) -> None:
+    """A command module reaching back into ``mdcompose.cli`` closes an import cycle.
+
+    ``cli`` imports every command module to register it, so the reverse edge is a
+    loop. CodeQL's ``py/cyclic-import`` flags it even when the import is deferred
+    into a function body. Shared names live in ``mdcompose.version`` instead.
+    """
+    imports = imported_names(COMMANDS_ROOT / f"{name}.py")
+    assert not any(module.startswith("mdcompose.cli") for module in imports)
 
 
 @pytest.mark.parametrize("name", CORE_MODULES)
