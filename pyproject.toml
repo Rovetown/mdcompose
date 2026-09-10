@@ -116,11 +116,12 @@ exclude_also = [
 ]
 precision = 2
 # A floor, not a target. Set one whole point below the real number
-# (92.86 at the time of writing) so a small honest change does not fail
+# (94.98 at the time of writing) so a small honest change does not fail
 # CI, and ratcheted up as coverage rises. The measure is "every
 # contract requirement has a test", not a percentage; this only stops a
-# silent slide.
-fail_under = 92
+# silent slide. The remaining gap is the interactive questionary pickers
+# in init and import; their flag paths are fully covered.
+fail_under = 94
 
 [tool.interrogate]
 # Ratchet up during the quality pass; 0 so a stray `uv run interrogate` reports

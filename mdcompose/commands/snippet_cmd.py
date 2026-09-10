@@ -192,7 +192,7 @@ def _edit_in_editor(path: Path) -> str | None:
         if completed.returncode != 0:
             raise AttentionError(f"editor exited with status {completed.returncode}")
         edited = files.read_text(draft)
-    return None if edited == original else edited
+    return None if files.content_equal(edited, original) else edited
 
 
 @app.command("remove")

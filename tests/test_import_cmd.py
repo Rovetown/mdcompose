@@ -537,6 +537,31 @@ def test_collision_rename_saves_under_a_new_name(
     assert "A different rule." in library_body(workspace)
 
 
+def test_a_collision_with_no_flag_asks_and_shows_both_copies(
+    invoke: Invoke, workspace: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from mdcompose.commands import import_cmd
+
+    save_testing(invoke, workspace)
+    divergent_library_snippet(workspace)
+    monkeypatch.setattr(import_cmd, "is_interactive", lambda: True)
+    monkeypatch.setattr(import_cmd, "prompt_choice", lambda *_a, **_k: "keep")
+    result = save_testing(invoke, workspace)
+    assert result.code == EXIT_OK
+    assert "already exists in the library with different content" in result.err
+    assert "A different rule." in library_body(workspace)
+
+
+def test_a_collision_with_no_flag_and_no_terminal_names_the_flag(
+    invoke: Invoke, workspace: Path
+) -> None:
+    save_testing(invoke, workspace)
+    divergent_library_snippet(workspace)
+    result = save_testing(invoke, workspace)
+    assert result.code == EXIT_ATTENTION
+    assert "--on-collision with keep, overwrite, or rename" in result.err
+
+
 # 6.3 keep still applies to the project
 
 

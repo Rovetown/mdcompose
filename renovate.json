@@ -25,8 +25,8 @@
       "groupName": "github actions"
     },
     {
-      "description": "A major update to a load-bearing dependency gets a review, never auto-merge. See the decisions log for the Typer floor.",
-      "matchPackageNames": ["typer", "platformdirs", "pyyaml", "questionary"],
+      "description": "A major update to a load-bearing dependency gets a review, never auto-merge. Runtime deps (see the decisions log for the Typer floor) plus the build backend and the release tool, whose majors can break packaging or `cz bump`.",
+      "matchPackageNames": ["typer", "platformdirs", "pyyaml", "questionary", "hatchling", "commitizen"],
       "matchUpdateTypes": ["major"],
       "automerge": false,
       "addLabels": ["needs-review"]

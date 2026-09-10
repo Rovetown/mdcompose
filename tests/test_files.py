@@ -188,6 +188,20 @@ def test_a_file_at_the_read_limit_is_allowed(tmp_path: Path) -> None:
     assert len(files.read_text(target)) == files.MAX_READ_BYTES
 
 
+def test_a_file_that_cannot_be_read_is_refused_by_name(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    target = tmp_path / "locked.md"
+    target.write_text("secret\n", encoding="utf-8")
+
+    def denied(_self: Path) -> bytes:
+        raise OSError(13, "denied")
+
+    monkeypatch.setattr(Path, "read_bytes", denied)
+    with pytest.raises(AttentionError, match=r"locked\.md"):
+        files.read_text(target)
+
+
 # --- hardening: writes are atomic and do not follow a symlink ---
 
 

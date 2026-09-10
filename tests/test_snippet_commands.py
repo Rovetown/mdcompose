@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import sys
+import textwrap
 from collections.abc import Callable
 from pathlib import Path
 
@@ -180,6 +182,51 @@ def test_edit_without_an_editor_configured_says_so(
     result = invoke("snippet", "edit", "commit-style")
     assert result.code == EXIT_ATTENTION
     assert "no editor configured" in result.err
+
+
+def _fake_editor(tmp_path: Path, script_body: str) -> str:
+    """An EDITOR value: this interpreter running a script over the draft path."""
+    script = tmp_path / "editor.py"
+    script.write_text(textwrap.dedent(script_body), encoding="utf-8")
+    return f'"{sys.executable}" "{script}"'
+
+
+def test_edit_through_the_editor_writes_the_result(
+    invoke: Invoke, library: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv(
+        "EDITOR",
+        _fake_editor(
+            tmp_path,
+            """
+            import pathlib, sys
+            pathlib.Path(sys.argv[1]).write_text(
+                "---\\ntitle: Edited\\n---\\n\\nEdited body.\\n", encoding="utf-8"
+            )
+            """,
+        ),
+    )
+    result = invoke("snippet", "edit", "commit-style")
+    assert result.code == EXIT_OK
+    assert snippets_module.read(library / "commit-style.md").body == "Edited body.\n"
+
+
+def test_edit_through_the_editor_with_no_change_is_reported(
+    invoke: Invoke, library: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("EDITOR", _fake_editor(tmp_path, "pass\n"))
+    result = invoke("snippet", "edit", "commit-style")
+    assert result.code == EXIT_OK
+    assert "unchanged" in result.out
+
+
+def test_edit_reports_an_editor_that_exits_non_zero(
+    invoke: Invoke, library: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("EDITOR", _fake_editor(tmp_path, "import sys; sys.exit(3)\n"))
+    result = invoke("snippet", "edit", "commit-style")
+    assert result.code == EXIT_ATTENTION
+    assert "status 3" in result.err
 
 
 def test_remove_deletes_the_snippet_when_confirmed(invoke: Invoke, library: Path) -> None:

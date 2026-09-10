@@ -41,10 +41,11 @@ installed console script, so a broken package cannot reach `main`.
   says so.
 - **A project description that leads with what it is**, since PyPI shows the
   README. The current one does.
-- **Confirm the name is free**: `mdcompose` returns 404 on both
-  `pypi.org/pypi/mdcompose/json` and `registry.npmjs.org/mdcompose`, and
-  `github.com/Rovetown/mdcompose` is unclaimed. One dead 2020 shell tool shares
-  the GitHub name; not a package, not a conflict.
+- **Confirm the name is free**: re-checked 2026-09-10, `mdcompose` returns 404
+  on `pypi.org/pypi/mdcompose/json`, `registry.npmjs.org/mdcompose`, and
+  `github.com/Rovetown/mdcompose`. One dead 2020 shell tool shares the GitHub
+  name; not a package, not a conflict. Register the repo before someone else
+  does.
 
 ### 1.3 Trusted Publishing, not API tokens
 
@@ -58,13 +59,12 @@ Setup:
    account's Publishing settings: project name `mdcompose`, owner `Rovetown`,
    repository `mdcompose`, workflow filename `release.yml`, environment
    `pypi`.
-2. Add a `release.yml` workflow triggered on a version tag (`v*`) that builds
-   the distributions and calls `pypa/gh-action-pypi-publish` with no password.
-   `uv publish` also supports trusted publishing (`uv publish` detects the OIDC
-   token in a GitHub Actions run automatically), so either the action or
-   `uv build && uv publish` works.
-3. Use a GitHub Actions **environment** named `pypi` with required reviewers,
-   so a release cannot be published without a human approving the run.
+2. `release.yml` already does this: on a `v*` tag it builds the distributions
+   and publishes to TestPyPI then PyPI with `pypa/gh-action-pypi-publish` and no
+   password.
+3. Create the GitHub Actions **environments** `testpypi` and `pypi` (the latter
+   with a required reviewer) so a release cannot publish without a human
+   approving the run. `release.yml` already gates its publish jobs on them.
 
 Publish to **TestPyPI first** with the same mechanism (a separate pending
 publisher, `test.pypi.org`) and install from there once to check the wheel
@@ -152,14 +152,15 @@ Already in `supply-chain.yml`:
 - `google/osv-scanner-action` against `uv.lock`, a third source (the OSV.dev
   aggregate).
 
-Add on the repository side:
+Already in the repo, inert until it is on GitHub:
 
-- **GitHub code scanning with CodeQL** (`github/codeql-action`), Python query
-  suite, on push and weekly. Catches injection and unsafe-pattern classes the
-  dependency scanners do not.
-- **OpenSSF Scorecard** (`ossf/scorecard-action`), weekly, publishing to the
-  Scorecard dashboard. It grades branch protection, pinned actions, token
-  permissions, and the presence of exactly the files this document is about.
+- **GitHub code scanning with CodeQL** (`codeql.yml`, `github/codeql-action`),
+  the Python `security-and-quality` query suite, on push and weekly. Catches
+  injection and unsafe-pattern classes the dependency scanners do not.
+- **OpenSSF Scorecard** (`scorecard.yml`, `ossf/scorecard-action`), weekly,
+  publishing to the Scorecard dashboard. It grades branch protection, pinned
+  actions, token permissions, and the presence of exactly the files this
+  document is about.
 
 ### 2.3 Pinning the workflows themselves
 
@@ -178,15 +179,12 @@ current has two halves:
 
 - **Adding a new Python.** When 3.15 reaches its first release candidate, add
   `"3.15"` to the matrix. Renovate does not do this for a raw matrix string;
-  either add it by hand once a year, or move the matrix into a small JSON file
-  that a `renovate.json` `regexManagers` rule bumps. The hand edit is a
-  two-minute job annually and is probably not worth the regex.
+  the hand edit is a two-minute job annually and is not worth a regex manager.
 - **Dropping an end-of-life Python.** 3.11 reaches end of life in October 2027.
   The floor is a policy choice (see the decisions log in `TODO.md`): raise
   `requires-python`, `[tool.ruff] target-version`, and the matrix in one commit
-  around then. A scheduled workflow that opens an issue when the current floor
-  is within 60 days of its `endoflife.date` entry automates the reminder;
-  `endoflife.date` has a JSON API (`https://endoflife.date/api/python.json`).
+  around then. `python-eol.yml` already opens a maintenance issue monthly once
+  the current floor is within 60 days of its `endoflife.date` entry.
 
 ### 2.5 What a fully wired repository looks like
 

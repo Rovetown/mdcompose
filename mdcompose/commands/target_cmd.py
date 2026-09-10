@@ -18,7 +18,6 @@ from mdcompose.core import config as config_module
 from mdcompose.core import files, managed_block
 from mdcompose.core import platform as platform_module
 from mdcompose.core import targets as targets_module
-from mdcompose.core.exit_codes import AttentionError
 from mdcompose.prompts import output_for
 
 app = typer.Typer(
@@ -133,14 +132,3 @@ def _canonical_content(configuration: config_module.GlobalConfig) -> str | None:
         return None
     block = managed_block.scan(files.read_text(path)).find(targets_module.TARGET_BLOCK)
     return None if block is None else block.content
-
-
-def canonical_content_or_raise(configuration: config_module.GlobalConfig) -> str:
-    """The canonical content, raising when the path is unset but targets exist."""
-    content = _canonical_content(configuration)
-    if content is None:
-        raise AttentionError(
-            "targets are registered but the canonical global AGENTS.md is not set or "
-            "not composed. Run 'mdcompose init --global' first."
-        )
-    return content

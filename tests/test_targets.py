@@ -216,6 +216,21 @@ def test_target_list_json(invoke: Invoke, home: Path) -> None:
     assert entry["label"] == "codex"
 
 
+def test_target_list_shows_unknown_sync_when_the_canonical_file_is_missing(
+    invoke: Invoke, home: Path
+) -> None:
+    raw_config(
+        home,
+        {
+            "schema_version": 1,
+            "global_agents_path": (home / ".claude" / "gone.md").as_posix(),
+            "registered_global_targets": [{"label": "codex", "path": "/x/AGENTS.md"}],
+        },
+    )
+    out = invoke("target", "list").out
+    assert "codex" in out and "unknown" in out
+
+
 def test_sync_status_computation(home: Path) -> None:
     canonical = "## Conventions\n\nShared house style.\n"
     dest = home / ".codex" / "AGENTS.md"

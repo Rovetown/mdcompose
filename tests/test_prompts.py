@@ -69,3 +69,25 @@ def test_declining_a_confirm_returns_false(monkeypatch: pytest.MonkeyPatch) -> N
     monkeypatch.setattr("typer.confirm", lambda *_a, **_k: False)
     out = make_output()
     assert prompts.confirm(out.context, "delete it?", flag="--yes") is False
+
+
+def test_prompt_choice_returns_the_typed_answer(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(prompts, "is_interactive", lambda: True)
+    monkeypatch.setattr("typer.prompt", lambda *_a, **_k: "  copy  ")
+    out = make_output()
+    answer = prompts.prompt_choice(
+        out.context, "the mode", options=("import", "copy"), default="import", flag="--mode"
+    )
+    assert answer == "copy"
+
+
+def test_prompt_choice_refuses_an_answer_not_in_the_options(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(prompts, "is_interactive", lambda: True)
+    monkeypatch.setattr("typer.prompt", lambda *_a, **_k: "sideways")
+    out = make_output()
+    with pytest.raises(AttentionError, match="not one of"):
+        prompts.prompt_choice(
+            out.context, "the mode", options=("import", "copy"), default="import", flag="--mode"
+        )

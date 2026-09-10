@@ -128,6 +128,18 @@ def test_a_missing_schema_version_is_refused(tmp_path: Path) -> None:
         ({"generated_by": 7}, "generated_by"),
         ({"snippets": {}}, "snippets"),
         ({"files": []}, "files"),
+        ({"schema_version": "1"}, "whole number"),
+        ({"snippets": ["a bare string"]}, "snippet entry 0 must be a JSON object"),
+        ({"snippets": [{"content": "c"}]}, "no 'id'"),
+        ({"files": {"agents_md": "a string"}}, "file entry 'agents_md' must be a JSON object"),
+        (
+            {"files": {"agents_md": {"mode": "copy", "managed_block_hash": "h"}}},
+            "has no 'path'",
+        ),
+        (
+            {"files": {"agents_md": {"path": "AGENTS.md", "mode": "copy"}}},
+            "no 'managed_block_hash'",
+        ),
     ],
 )
 def test_a_wrong_typed_field_names_the_field(
@@ -136,6 +148,21 @@ def test_a_wrong_typed_field_names_the_field(
     with pytest.raises(AttentionError) as raised:
         manifest_module.load_manifest(write_manifest(tmp_path, manifest_payload(**payload)))
     assert expected in str(raised.value)
+
+
+def test_a_top_level_that_is_not_an_object_is_refused(tmp_path: Path) -> None:
+    with pytest.raises(AttentionError, match="top level must be a JSON object"):
+        manifest_module.load_manifest(write_manifest(tmp_path, [1, 2, 3]))
+
+
+def test_a_manifest_with_only_a_schema_version_reads_as_empty(tmp_path: Path) -> None:
+    manifest = manifest_module.load_manifest(
+        write_manifest(tmp_path, {"schema_version": manifest_module.SCHEMA_VERSION})
+    )
+    assert manifest is not None
+    assert manifest.snippets == ()
+    assert manifest.files == {}
+    assert manifest.detected_stack == ()
 
 
 def test_no_machine_specific_state_is_accepted(tmp_path: Path) -> None:

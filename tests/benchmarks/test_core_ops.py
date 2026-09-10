@@ -11,8 +11,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from mdcompose.core import composition, managed_block, sections
 from mdcompose.core import eject as eject_module
-from mdcompose.core import managed_block, sections
 from mdcompose.core import manifest as manifest_module
 from mdcompose.core import report as report_module
 from mdcompose.core import snippets as snippets_module
@@ -46,6 +46,20 @@ def test_upsert_into_a_large_claude_md(benchmark, large_claude_md: str) -> None:
         )
     )
     assert replacement in result
+
+
+def test_write_a_block_into_a_large_claude_md(benchmark, drifted_project: Path) -> None:
+    target = drifted_project / "CLAUDE.md"
+    pristine = target.read_bytes()
+    body = "".join(f"## Fresh {index}\n\nreplacement line for {index}\n\n" for index in range(4000))
+
+    def reset() -> None:
+        target.write_bytes(pristine)
+
+    def write() -> bool:
+        return composition.apply_to_file(target, CLAUDE_BLOCK, body)
+
+    benchmark.pedantic(write, setup=reset, rounds=30, iterations=1)
 
 
 def test_detect_drift_on_large_managed_files(benchmark, drifted_project: Path) -> None:

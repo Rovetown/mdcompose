@@ -31,7 +31,9 @@ from importlib import metadata
 #               specific package to KNOWN after checking it.
 #   DENY        strong or linking copyleft (GPL, LGPL, AGPL, EUPL, SSPL) and
 #               anything unrecognized. These would force mdcompose copyleft, or
-#               need a human to classify. The check fails on all of them.
+#               need a human to classify. The check fails on all of them. The
+#               same families are spelled out for the review-time check in
+#               .github/workflows/dependency-review.yml; keep the two in step.
 #
 # SPDX identifiers plus the noisier free-text spellings the ecosystem still
 # emits. Anything not here fails, which is the safe default.

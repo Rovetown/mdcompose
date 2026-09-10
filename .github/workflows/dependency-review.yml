@@ -29,7 +29,17 @@ jobs:
       - uses: actions/dependency-review-action@v4
         with:
           fail-on-severity: moderate
-          # The DENY tier from scripts/check_licenses.py. An allow-list would
-          # reject a legitimate dependency whose SPDX string is spelled oddly;
-          # denying the copyleft families is the check that actually matters.
-          deny-licenses: GPL-2.0, GPL-2.0-only, GPL-2.0-or-later, GPL-3.0, GPL-3.0-only, GPL-3.0-or-later, LGPL-2.1, LGPL-3.0, AGPL-3.0, EUPL-1.2, SSPL-1.0
+          # The DENY tier from scripts/check_licenses.py: the strong and linking
+          # copyleft families (GPL, LGPL, AGPL, EUPL, SSPL), every SPDX spelling
+          # of each. `deny-licenses` matches exact ids, so each -only and
+          # -or-later variant and each deprecated id is listed. That script is
+          # the real gate (deny by default over the resolved tree); this one
+          # catches the same families at review time.
+          deny-licenses: >-
+            GPL-1.0-only, GPL-1.0-or-later, GPL-2.0, GPL-2.0-only, GPL-2.0-or-later,
+            GPL-3.0, GPL-3.0-only, GPL-3.0-or-later,
+            LGPL-2.0, LGPL-2.0-only, LGPL-2.0-or-later,
+            LGPL-2.1, LGPL-2.1-only, LGPL-2.1-or-later,
+            LGPL-3.0, LGPL-3.0-only, LGPL-3.0-or-later,
+            AGPL-1.0-only, AGPL-1.0-or-later, AGPL-3.0, AGPL-3.0-only, AGPL-3.0-or-later,
+            EUPL-1.1, EUPL-1.2, SSPL-1.0

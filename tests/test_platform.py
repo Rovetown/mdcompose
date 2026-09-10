@@ -61,6 +61,19 @@ def test_native_linux_is_not_wsl() -> None:
     assert detected.is_wsl is False
 
 
+def test_detection_reads_proc_version_when_no_kernel_string_is_passed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The real `_read_proc_version` path runs when the caller passes nothing.
+
+    With `/proc/version` made unreadable and no WSL env var, the kernel string
+    is empty and WSL is not detected.
+    """
+    monkeypatch.setattr(Path, "is_file", lambda _self: False)
+    detected = platform_module.detect_platform(system="Linux", environ={})
+    assert detected.is_wsl is False
+
+
 @pytest.mark.parametrize("system", ["Windows", "Darwin"])
 def test_wsl_indicators_are_ignored_off_linux(system: str) -> None:
     detected = platform_module.detect_platform(
