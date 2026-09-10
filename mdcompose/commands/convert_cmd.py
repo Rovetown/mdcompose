@@ -25,6 +25,7 @@ from mdcompose.core.exit_codes import AttentionError
 from mdcompose.core.output import OutputContext
 from mdcompose.core.sections import Section
 from mdcompose.prompts import is_interactive, output_for, prompt_choice
+from mdcompose.version import generated_by
 
 SourceArgument = Annotated[
     str, typer.Argument(help="File to move content out of: AGENTS.md or CLAUDE.md.")
@@ -217,10 +218,8 @@ def _record_mode(project_root: Path, target_path: Path, mode: Mode) -> None:
     path = manifest_module.manifest_path(project_root)
     manifest = manifest_module.load_manifest(path)
     if manifest is None:
-        from mdcompose.cli import PACKAGE_NAME, resolve_version
-
         built = manifest_module.build(
-            generated_by=f"{PACKAGE_NAME} {resolve_version()}",
+            generated_by=generated_by(),
             generated_at=_now(),
             detected_stack=(),
             snippets=(),

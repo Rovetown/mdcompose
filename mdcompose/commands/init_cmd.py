@@ -24,6 +24,7 @@ from mdcompose.core.exit_codes import EXIT_ATTENTION, AttentionError
 from mdcompose.core.output import OutputContext
 from mdcompose.core.snippets import Snippet
 from mdcompose.prompts import confirm, is_interactive, output_for, prompt_choice
+from mdcompose.version import generated_by
 
 DirectoryArgument = Annotated[
     Path | None,
@@ -158,7 +159,7 @@ def init(
 
     result = init_ops.apply(
         prepared,
-        generated_by=_generated_by(),
+        generated_by=generated_by(),
         drift_choices=choices,
     )
     _report(output, prepared, result)
@@ -195,17 +196,6 @@ def _validated_mode(raw: str | None) -> Mode | None:
             f"--mode must be '{composition.IMPORT}' or '{composition.COPY}', found '{raw}'"
         )
     return raw
-
-
-def _generated_by() -> str:
-    """The version string recorded in a manifest.
-
-    Imported at call time because the CLI module registers this command, so a
-    module-level import would be a cycle.
-    """
-    from mdcompose.cli import PACKAGE_NAME, resolve_version
-
-    return f"{PACKAGE_NAME} {resolve_version()}"
 
 
 def _default_mode(

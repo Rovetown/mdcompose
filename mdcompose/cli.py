@@ -13,7 +13,6 @@ Windows console cannot raise an encoding error.
 from __future__ import annotations
 
 import sys
-from importlib import metadata
 from pathlib import Path
 from typing import Annotated
 
@@ -32,8 +31,7 @@ from mdcompose.core import report as report_module
 from mdcompose.core.exit_codes import EXIT_ATTENTION, EXIT_INTERNAL, EXIT_OK, AttentionError
 from mdcompose.core.output import GlobalOptions, OutputContext, assert_ascii
 from mdcompose.prompts import output_for
-
-PACKAGE_NAME = "mdcompose"
+from mdcompose.version import PACKAGE_NAME, resolve_version
 
 app = typer.Typer(
     name=PACKAGE_NAME,
@@ -41,18 +39,6 @@ app = typer.Typer(
     rich_markup_mode=None,
     add_completion=False,
 )
-
-
-def resolve_version() -> str:
-    """Return the installed version, the same string recorded in a manifest.
-
-    Falls back to a marker rather than raising when package metadata is
-    unavailable, which happens only in a source tree that was never installed.
-    """
-    try:
-        return metadata.version(PACKAGE_NAME)
-    except metadata.PackageNotFoundError:
-        return "0+unknown"
 
 
 def _version_callback(requested: bool) -> None:
