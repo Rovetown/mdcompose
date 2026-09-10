@@ -102,6 +102,10 @@ mutmut = "mutmut"
 [tool.mypy]
 # Strict, and enforced: the `lint` job in ci.yml runs `uv run mypy`.
 python_version = "3.11"
+# The lint job runs on Linux, where `winreg` has no stubs and mypy flags every
+# attribute of it. Windows is the primary target and the registry code is the
+# only platform-specific standard-library use, so type-check as win32.
+platform = "win32"
 strict = true
 files = ["mdcompose"]
 
@@ -115,13 +119,15 @@ exclude_also = [
   "raise NotImplementedError",
 ]
 precision = 2
-# A floor, not a target. Set one whole point below the real number
-# (94.98 at the time of writing) so a small honest change does not fail
-# CI, and ratcheted up as coverage rises. The measure is "every
-# contract requirement has a test", not a percentage; this only stops a
-# silent slide. The remaining gap is the interactive questionary pickers
-# in init and import; their flag paths are fully covered.
-fail_under = 94
+# A floor, not a target. The `coverage` job runs on Linux, where the
+# Windows-only registry code cannot execute and the total sits near 94; on
+# Windows locally it is near 95. The floor is set one point below the Linux
+# number so a small honest change does not fail CI, and is ratcheted up as
+# coverage rises. The measure is "every contract requirement has a test", not a
+# percentage; this only stops a silent slide. The remaining gap is the
+# interactive questionary pickers in init and import, whose flag paths are
+# fully covered.
+fail_under = 93
 
 [tool.interrogate]
 # Ratchet up during the quality pass; 0 so a stray `uv run interrogate` reports

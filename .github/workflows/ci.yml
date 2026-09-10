@@ -237,8 +237,9 @@ jobs:
   gitleaks:
     # The pre-commit gitleaks hook only sees a working tree. This scans the full
     # history, so a secret committed and then removed in a later commit is still
-    # caught. gitleaks-action is free for public repositories and personal
-    # accounts; a GitHub organisation needs a free GITLEAKS_LICENSE secret.
+    # caught. The gitleaks binary is run directly rather than through
+    # gitleaks-action: the action diffs only the pushed range, which has no
+    # valid base on the first push of a rewritten history.
     name: secret scan
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -248,9 +249,16 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - uses: gitleaks/gitleaks-action@v2
+      - name: Install gitleaks
         env:
-          GITHUB_TOKEN: ${{ github.token }}
+          # renovate: datasource=github-releases depName=gitleaks/gitleaks
+          GITLEAKS_VERSION: 8.24.3
+        run: |
+          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
+            | sudo tar -xz -C /usr/local/bin gitleaks
+
+      - name: Scan the full history
+        run: gitleaks git --redact --exit-code 1 --verbose .
 
   all-green:
     # The single check branch protection requires: it passes only if every job
