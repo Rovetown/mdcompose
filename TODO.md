@@ -17,10 +17,9 @@ few later, larger efforts.
    confirm the tag lands on TestPyPI only, install it in a clean venv
    (`pip install -i https://test.pypi.org/simple/ mdcompose==<ver>`). Then run
    `bump.yml` with `stable` for the real thing.
-3. **Post-repo hardening.** Let Renovate SHA-pin every `uses:` on its first
-   run, then tighten `.github/zizmor.yml` `unpinned-uses` back to `hash-pin`.
-   Point `platform.ONEDRIVE_HELP_URL` at a real video. Move the
-   `Development Status` classifier off `3 - Alpha` when a release earns it.
+3. **Post-repo hardening.** Point `platform.ONEDRIVE_HELP_URL` at a real video.
+   Move the `Development Status` classifier off `3 - Alpha` when a release earns
+   it.
 
 Watch at the first release:
 
@@ -160,7 +159,7 @@ What each of the newer pieces does:
 
 | File / job | Trigger | Does | Notes |
 | --- | --- | --- | --- |
-| `hooks` job in `ci.yml` | push, PR | `pre-commit run --all-files` (hygiene, `ruff`, ASCII, `gitleaks`, `zizmor`, `actionlint`, `check-github-workflows`) | until the repo is public; then delete this job and enable `pre-commit.ci`. Never run both |
+| `workflow lint` job in `ci.yml` | push, PR | `actionlint` + `zizmor` + `check-github-workflows` from pinned releases | the two hooks pre-commit.ci cannot run in its sandbox; the rest of `.pre-commit-config.yaml` is left to pre-commit.ci |
 | `commits` job in `ci.yml` | PR only | `cz check --rev-range base..head` (SHAs from the PR event, via an env var) | `fetch-depth: 0` |
 | `gitleaks` job in `ci.yml` | push, PR | `gitleaks-action@v2` over full history | the `hooks` job only sees the tree; this sees history |
 | `all-green` job in `ci.yml` | push, PR | `if: always()`, `needs:` every other job, passes only if each is `success` or `skipped` | the single required check |
@@ -318,9 +317,6 @@ section is the reference. What is left is account-side, roughly in order:
 
 Post-repo, at the release that earns it:
 
-- [ ] Pin every `uses:` to a full commit SHA, then tighten `.github/zizmor.yml`
-  `unpinned-uses` back to `hash-pin`. Left for Renovate's
-  `helpers:pinGitHubActionDigests` to do on its first run.
 - [ ] Move the `Development Status` classifier off `3 - Alpha`.
 - [ ] Add a new Python to the CI matrix by hand when its first release
   candidate lands (annual, not worth a regex manager).
