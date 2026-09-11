@@ -13,12 +13,16 @@ vulnerability reporting). What remains is the first release, a few follow-ups,
 and a set of OpenSSF Scorecard items folded into the sequence at the step each
 one belongs to. The Scorecard reasoning is in [`docs/scorecard.md`](docs/scorecard.md).
 
-### Do now, before the next Scorecard run
+### Scorecard, current state
 
-1. Done. [`SECURITY.md`](SECURITY.md) now carries the private-advisory URL
-   (`https://github.com/Rovetown/mdcompose/security/advisories/new`), which is
-   what the Security-Policy check's linking requirement wants. Confirm the check
-   reaches 10 on the next `scorecard.yml` run.
+1. Done. [`SECURITY.md`](SECURITY.md) carries the private-advisory URL
+   (`https://github.com/Rovetown/mdcompose/security/advisories/new`). Confirmed
+   in the `scorecard.yml` run for commit `b730e9e`: Security-Policy, along with
+   Signed-Releases and Packaging, all score 10. Overall: 7.2. Remaining gap is
+   Maintained (0, clears at 90 days), CII-Best-Practices (0, needs
+   registration, see step 7 below), and the accepted solo-maintainer limits
+   (Code-Review, Contributors, Branch-Protection, Fuzzing). See
+   [`docs/scorecard.md`](docs/scorecard.md) for the full detail.
 
 ### First release
 

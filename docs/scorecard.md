@@ -6,11 +6,12 @@ This file is the reasoning behind them.
 
 Live score: <https://scorecard.dev/viewer/?uri=github.com/Rovetown/mdcompose> Raw JSON: <https://api.scorecard.dev/projects/github.com/Rovetown/mdcompose>
 
-Last reviewed: 2026-09-10, commit `0fe8e27`, overall score 6.5.
+Last reviewed: 2026-09-11, commit `b730e9e` (the `scorecard.yml` run this commit
+triggered), overall score 7.2.
 
 ## Checks already at 10
 
-Pinned-Dependencies, Token-Permissions, SAST, CI-Tests, License, Vulnerabilities, Binary-Artifacts, Dangerous-Workflow, Dependency-Update-Tool.
+Pinned-Dependencies, Token-Permissions, SAST, CI-Tests, License, Vulnerabilities, Binary-Artifacts, Dangerous-Workflow, Dependency-Update-Tool, Security-Policy, Signed-Releases, Packaging.
 These need nothing.
 Do not regress them.
 
@@ -18,9 +19,6 @@ Do not regress them.
 
 | Check | Score | Verdict | Reason |
 | ----- | ----- | ------- | ------ |
-| Security-Policy | 4 | Fix now | [SECURITY.md](../SECURITY.md) has explanatory prose but no `https://` link or email, so the 6-point linking requirement is unmet. |
-| Signed-Releases | not scored | Fix at first stable release | `release.yml` attaches only `dist/*` to the GitHub Release. No signature or provenance file, so the check has nothing to score. |
-| Packaging | not scored | Resolves itself | Scorecard recognises `pypa/gh-action-pypi-publish`. The check flips to 10 after the first release runs. No work. |
 | Maintained | 0 | Ignore, time heals it | Age penalty only: the repository is under 90 days old. Clears once it passes 90 days with regular commit or issue activity. |
 | CII-Best-Practices | 0 | Medium priority | No OpenSSF Best Practices registration. A passing badge is worth 5 on this check. |
 | Branch-Protection | 4 | Capped, accept | Scorecard treats `EnforceAdmins` as false whenever any ruleset bypass actor exists, and `bump.yml` needs the maintainer bypass. |
@@ -30,31 +28,22 @@ Do not regress them.
 
 ## Detail
 
-### Security-Policy
+### Security-Policy (done, 10)
 
 Scorecard scores the policy in three parts: 6 points for a contactable link (an `https://` URL or an email address), 3 points for free-form explanatory text, 1 point for specific vulnerability and disclosure language.
-The file already earns the last two.
-It is missing a link.
+Fixed by adding a line to [SECURITY.md](../SECURITY.md) pointing at `https://github.com/Rovetown/mdcompose/security/advisories/new`, the private advisory form -- the same channel the prose already described, now in a form the check can see.
 
-Fix: add a line to [SECURITY.md](../SECURITY.md) pointing at `https://github.com/Rovetown/mdcompose/security/advisories/new`, the private advisory form.
-That is the same channel the prose already describes, now in a form the check can see.
-Result: 10.
-
-### Signed-Releases
+### Signed-Releases (done, 10)
 
 The check looks at the assets attached to the last several GitHub Releases for a signature file (`*.sig`, `*.asc`, `*.sigstore.json`, and similar) or a SLSA provenance file (`*.intoto.jsonl`, worth the full 10).
 The PEP 740 attestations that `pypa/gh-action-pypi-publish` generates go to PyPI, not to the GitHub Release, so they do not count here.
 
-Fix: add `actions/attest-build-provenance` to `release.yml` and attach its output to the `gh release create` asset list.
-The `github-release` job then also needs `id-token: write` and `attestations: write` alongside its existing `contents: write`.
-A `*.sigstore.json` bundle scores 8; a SLSA `*.intoto.jsonl` scores 10.
+`release.yml` runs `actions/attest-build-provenance` and attaches `mdcompose.intoto.jsonl` to the `gh release create` asset list, with `id-token: write` and `attestations: write` on the `github-release` job alongside `contents: write`.
+Confirmed in the `scorecard.yml` run for commit `b730e9e`: `"1 out of the last 1 releases have a total of 1 signed artifacts"`, citing `mdcompose.intoto.jsonl` on the `v0.1.0` release.
 
-Pre-releases (`a1`, `b1`, `rc1`) never get a GitHub Release, so this only has to be in place before the first stable tag, not before the alpha.
+### Packaging (done, 10)
 
-### Packaging
-
-Nothing to do. `release.yml` already publishes through `pypa/gh-action-pypi-publish`, which is on Scorecard's detection list.
-The check reads `not scored` only because no release has run yet.
+Nothing was needed. `release.yml` publishes through `pypa/gh-action-pypi-publish`, which is on Scorecard's detection list, and the check flipped to 10 as soon as the first release ran.
 
 ### Maintained
 
@@ -98,9 +87,13 @@ Left at 0.
 
 ## Ceiling
 
-Once the fixable items land (Security-Policy, Signed-Releases, Packaging) and the repository passes 90 days, the overall score should sit around 8.0 to 8.3.
+Security-Policy, Signed-Releases, and Packaging are done; the score sits at 7.2.
+Once CII-Best-Practices passes and the repository clears 90 days (Maintained), it should land around 8.0 to 8.3.
 The residual gap is Code-Review, Contributors, Branch-Protection, and Fuzzing, all of which are either solo-maintainer structural limits or a deliberate non-goal.
 About 8.3 is the practical maximum without a second maintainer.
+
+Note for anyone reading the public badge: it can lag the repository's own `scorecard.yml` run by up to a few days, since `img.shields.io/ossf-scorecard` reads from the OpenSSF API's own re-scan schedule, not from this repository's Actions run directly.
+The run itself (`gh run view <id> --log`, or the Security tab's code scanning alerts) is the current source of truth.
 
 ## Accepted limitations
 
