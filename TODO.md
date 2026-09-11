@@ -70,12 +70,14 @@ Still to finish:
   yes, a simple wordmark is enough; add it as a `<picture>` with light and dark
   variants in the centered header block, above or replacing the tagline. If no,
   ship text-only for now; the header already reads fine without it.
-- **Move the reference-level detail out of the README** into a new
-  `docs/concepts.md` (full snippet frontmatter schema, hash normalization,
-  `MDCOMPOSE_CONFIG_DIR`, the exit-code table, the ASCII and no-network
-  rationale, target projection specifics). The drafts already trimmed most of
-  this; the new page is where it lands. Link it from the README's Documentation
-  section.
+- Done. `docs/concepts.md` now carries the reference-level detail (snippet
+  frontmatter schema, hash normalization, `MDCOMPOSE_CONFIG_DIR`, the
+  exit-code table, the ASCII and no-network rationale, target registration and
+  projection), an expanded "Why mdcompose, specifically" section (the
+  distinctive points from the Standing decision below, argued rather than just
+  listed), and a Planned section covering the Roadmap items (TUI, editor
+  integrations, other-language ports, a zero-install binary). Linked from the
+  README's Documentation and How it compares sections. Not yet committed.
 - **Verify the badges resolve** once `0.1.0` is on PyPI (the PyPI, pyversions,
   and scorecard badges 404 or show "unknown" until then).
 

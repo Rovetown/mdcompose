@@ -53,10 +53,13 @@ uvx mdcompose doctor
 
 ## Documentation
 
-`docs/core-contract.md` specifies every behavior independently of the Python
-implementation, so a port to another language reimplements a spec rather than
-translating code. `CONTRIBUTING.md` covers the conventions CI enforces and how a
-change is planned.
+`docs/concepts.md` covers the reference detail this README leaves out: the
+snippet frontmatter schema, how drift detection hashes and normalizes content,
+every path and exit code, the ASCII and no-network rationale, and what is
+planned but not built. `docs/core-contract.md` specifies every behavior
+independently of the Python implementation, so a port to another language
+reimplements a spec rather than translating code. `CONTRIBUTING.md` covers the
+conventions CI enforces and how a change is planned.
 
 ## Quickstart
 
@@ -207,7 +210,7 @@ real `@import`; drift detection by hashing one owned block; a committed lock
 with embedded content so a fork works without the author's library; and real
 Windows, WSL, and mounted-drive path correctness. It deliberately does no
 format translation: a target receives Markdown, not Cursor rules or Copilot
-instructions.
+instructions. See `docs/concepts.md` for the fuller case for each point.
 
 ## Contributing
 
