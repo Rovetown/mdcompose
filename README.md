@@ -1,230 +1,226 @@
+<div align="center">
+
 # mdcompose
 
-Manage the relationship between a project's `CLAUDE.md` and `AGENTS.md` files,
-and compose their content from a personal library of reusable markdown snippets
-instead of writing each project's file from scratch.
+**Compose a project's `CLAUDE.md` and `AGENTS.md` from a personal library of reusable Markdown snippets.**
 
-Status: the v1 command surface is complete. Composing a project, pulling
-sections out of existing files (`import`), moving content between the pair
-(`convert`), the `config` commands, ejecting (`eject`), and projecting the
-global file to other tools' locations (`target`) all work end to end.
+[![PyPI](https://img.shields.io/pypi/v/mdcompose?style=flat-square)](https://pypi.org/project/mdcompose/)
+[![Python](https://img.shields.io/pypi/pyversions/mdcompose?style=flat-square)](https://pypi.org/project/mdcompose/)
+[![CI](https://img.shields.io/github/actions/workflow/status/Rovetown/mdcompose/ci.yml?branch=main&style=flat-square&label=CI)](https://github.com/Rovetown/mdcompose/actions/workflows/ci.yml)
+[![OpenSSF Scorecard](https://img.shields.io/ossf-scorecard/github.com/Rovetown/mdcompose?style=flat-square&label=scorecard)](https://scorecard.dev/viewer/?uri=github.com/Rovetown/mdcompose)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](https://github.com/Rovetown/mdcompose/blob/main/LICENSE)
 
-## Install
+</div>
 
-    pipx install mdcompose
+Most repositories need the same handful of instructions for AI coding agents:
+how commits are written, which test command to run, which files not to touch.
+mdcompose keeps those as small snippets in one place and builds each project's
+`AGENTS.md` and `CLAUDE.md` from the ones you pick, so you stop copying the same
+paragraphs between repositories.
 
-Or, without a persistent install:
+> `mdcompose` composes Markdown. It is unrelated to Docker Compose; the shared
+> `-compose` suffix is a coincidence.
 
-    uvx mdcompose doctor
+## Highlights
 
-## What exists today
+- **One library, composed per project.** Snippets are a flat directory of
+  Markdown files. `init` writes each project's pair from the snippets you select.
+- **Import or copy.** `CLAUDE.md` can hold a live `@AGENTS.md` reference so the
+  two files never drift, or a materialized copy when the file has to stand alone.
+- **Drift detection.** mdcompose owns one comment-delimited block and hashes its
+  contents. Edit inside it by hand and the next `init` shows the difference and
+  asks before overwriting.
+- **A committed lockfile.** `mdcompose.lock` embeds each snippet's content, so a
+  clone or fork reproduces the same files with an empty library.
+- **Correct paths on Windows, WSL, and Linux**, including a warning when a
+  managed file sits inside a OneDrive-synced folder.
 
-    mdcompose init                compose AGENTS.md and CLAUDE.md here
-    mdcompose init --global       compose the global pair instead
-    mdcompose doctor              detected platform, resolved paths, drift status
-    mdcompose doctor --json       the same report as one JSON document
-    mdcompose snippet list        the snippets in your library
-    mdcompose snippet edit <id>   open one in your editor
-    mdcompose snippet remove <id> delete one
-    mdcompose snippet adopt       save a project's embedded snippets to your library
-    mdcompose import <file>       pull sections out of an existing CLAUDE.md or AGENTS.md
-    mdcompose convert <src> <dst> move content between this project's AGENTS.md and CLAUDE.md
-    mdcompose eject               stop managing a directory: remove the markers, delete the lock
-    mdcompose config show         every config field and its effective value
-    mdcompose config set <k> <v>  change one field
-    mdcompose target add <l> <p>  register another tool's global file for projection
-    mdcompose target list         registered targets and their sync status
-    mdcompose --version
+It makes no network requests and collects no telemetry.
 
-`doctor` has no side effects. It creates nothing, modifies nothing, and never
-prompts, so it is safe to run anywhere, including in CI. It exits 1 when a
-managed file has drifted from what the manifest recorded.
+## Installation
 
-## Who owns what in a file
+```bash
+pipx install mdcompose      # recommended
+uv tool install mdcompose   # if you already use uv
+pip install mdcompose
+```
 
-`init` owns the managed block: the comment-delimited region it regenerates from
-your snippet selection on every run. `import` and `convert` own the region around
-it, where your own hand-written prose lives. Neither touches the other's
+Run it once without installing:
+
+```bash
+uvx mdcompose doctor
+```
+
+## Documentation
+
+`docs/core-contract.md` specifies every behavior independently of the Python
+implementation, so a port to another language reimplements a spec rather than
+translating code. `CONTRIBUTING.md` covers the conventions CI enforces and how a
+change is planned.
+
+## Quickstart
+
+The whole flow, start to finish:
+
+<!-- demo GIF: docs/assets/mdcompose-demo.gif -- not yet recorded, see TODO.md -->
+<div align="center">
+  <img src="https://raw.githubusercontent.com/Rovetown/mdcompose/main/docs/assets/mdcompose-demo.gif" alt="mdcompose init composing a project's AGENTS.md and CLAUDE.md from selected snippets" width="720">
+</div>
+
+A snippet is one Markdown file: optional YAML frontmatter, then the body. The
+filename without `.md` is the snippet id.
+
+```bash
+# 1. add a snippet to your library
+mkdir -p ~/.config/mdcompose/snippets
+$EDITOR ~/.config/mdcompose/snippets/commit-style.md
+```
+
+```markdown
+---
+title: Commit style
+description: How commits are written here
+applies_to: both
+---
+
+Write small commits, in Conventional Commits format.
+```
+
+```bash
+# 2. compose this project's AGENTS.md and CLAUDE.md
+cd my-project
+mdcompose init
+
+# 3. check the managed files against the lock at any time
+mdcompose doctor
+```
+
+After `init` the project holds three managed files:
+
+```
+my-project/
+├── AGENTS.md
+├── CLAUDE.md
+└── mdcompose.lock
+```
+
+`doctor` has no side effects. It creates nothing, changes nothing, never
+prompts, and exits `1` when a managed file has drifted from the lock, so it is
+safe in CI.
+
+### The command surface
+
+```text
+mdcompose init                 compose AGENTS.md and CLAUDE.md here
+mdcompose init --global        compose the global pair instead
+mdcompose init --reapply       recompose from the recorded selection, no picker
+mdcompose doctor               platform, resolved paths, drift status
+mdcompose doctor --json        the same report as one JSON document
+mdcompose snippet list         the snippets in your library
+mdcompose snippet edit <id>    open one in your editor
+mdcompose snippet remove <id>  delete one
+mdcompose snippet adopt        save a project's embedded snippets to your library
+mdcompose import <file>        pull sections out of an existing CLAUDE.md or AGENTS.md
+mdcompose convert <src> <dst>  move content between this project's AGENTS.md and CLAUDE.md
+mdcompose eject                stop managing a directory: remove markers, delete the lock
+mdcompose config show          every config field and its effective value
+mdcompose config set <k> <v>   change one field
+mdcompose target add <l> <p>   register another tool's global file for projection
+mdcompose target list          registered targets and their sync status
+```
+
+## How it works
+
+### Who owns what in a file
+
+`init` owns the managed block: a comment-delimited region it regenerates from
+your snippet selection on every run. `import` and `convert` own the region
+around it, where your own hand-written prose lives. Neither touches the other's
 territory.
 
-That is why imported and converted content lands *outside* the block. It has no
-snippet id, so putting it in the block would mean losing it on the next `init`.
-Outside, it survives untouched, at the cost that mdcompose does not track it: it
-is a one-off paste. To make an imported section reusable everywhere, save it with
-`import --save-as-snippet <name>` and then pick it in `init`.
+```text
+# My own notes, kept exactly as written.
 
-`import` reads a file from anywhere and never writes to it. `convert` moves
-content between your two files and deletes it from the source once the target
-write succeeds, so it always shows a diff and asks first.
+<!-- mdcompose:agents-composition:start -->
+...composed content, rewritten on every init...
+<!-- mdcompose:agents-composition:end -->
 
-## Targets are projections, not sources
+More of my own notes, also kept.
+```
 
-If you run more than one AI tool, register each tool's global file once with
-`target add <label> <path>`. When you write your global pair, mdcompose projects
-your canonical global AGENTS.md content into a managed block inside every
-registered file. The flow is one-directional: the canonical file is the only
-source, a target is never read back, and mdcompose never detects or guesses a
-tool's path. If you edit a target directly, `doctor` reports it out of sync
-rather than propagating the change.
+Imported and converted content lands *outside* the block on purpose: it has no
+snippet id, so putting it inside would mean losing it on the next `init`. To
+make an imported section reusable, save it with `import --save-as-snippet <name>`
+and pick it in `init`.
 
-## Import mode and copy mode
+### Import mode and copy mode
 
-`init` asks once how CLAUDE.md should relate to AGENTS.md, then remembers.
+`init` asks once how `CLAUDE.md` should relate to `AGENTS.md`, then remembers.
 
-**Import mode** puts a live `@AGENTS.md` reference in CLAUDE.md, using Claude
-Code's own mechanism. The content exists in one place, so the two files cannot
-drift apart.
+```text
+Import mode                         Copy mode
 
-    CLAUDE.md                       AGENTS.md
-    <!-- ...:start -->              <!-- ...:start -->
-    @AGENTS.md            ------>   your composed snippets
-    <!-- ...:end -->                <!-- ...:end -->
+CLAUDE.md        AGENTS.md           CLAUDE.md          AGENTS.md
+@AGENTS.md  -->  composed snippets   composed snippets  composed snippets
+```
 
-**Copy mode** materializes the content into CLAUDE.md, so the file is
-self-contained and needs nothing resolved.
+Import mode puts a live `@AGENTS.md` reference in `CLAUDE.md` using Claude
+Code's own mechanism, so the content exists in one place and cannot drift. Copy
+mode materializes the content into `CLAUDE.md` so the file needs nothing
+resolved. `AGENTS.md` is plain, import-agnostic Markdown either way, because
+`@import` is Claude Code specific.
 
-AGENTS.md is identical either way. It is always plain, import-agnostic markdown,
-because `@import` is Claude Code specific and other tools reading AGENTS.md would
-not resolve it.
+### The lockfile
 
-Everything mdcompose writes goes inside a marked block. Anything you write around
-it is yours and is never touched:
+```
+~/.config/mdcompose/snippets/        my-project/
+├── commit-style.md                  ├── AGENTS.md
+├── python-lbyl.md                   ├── CLAUDE.md
+└── plain-ascii.md                   └── mdcompose.lock   <-- committed
+```
 
-    # My own notes
+`mdcompose.lock` records which snippets a project composed, in what order and
+mode, and embeds each snippet's full content. Snippet ids resolve against a
+personal library nobody else has, so embedding the content is what lets a fork
+reproduce the project. It also stores a normalized hash of each managed block,
+identical across operating systems, which is how drift detection works on a
+fresh clone regardless of line-ending convention. Nothing machine-specific goes
+in: no absolute paths, no hostname, no operating system.
 
-    Kept exactly as written.
+The name is the reverse of the npm convention: one file, committed, pinning
+resolved content. There is no second machine-local file.
 
-    <!-- mdcompose:agents-composition:start -->
-    ...composed content, rewritten on every init...
-    <!-- mdcompose:agents-composition:end -->
+## How it compares
 
-    More of my own notes, also kept.
+A few projects cover the same idea of a personal snippet library composed per
+project into agent config files:
 
-If you hand-edit inside the block, the next `init` notices, shows you the
-difference, and asks whether to keep your edit or overwrite it. Keeping it is
-remembered, so it stops asking.
-
-## The snippet library is a directory of markdown files
-
-Your library is a flat directory, one markdown file per snippet: YAML
-frontmatter followed by the body. The filename minus `.md` is the snippet id, so
-there is no id field that can drift out of sync with it.
-
-    ---
-    title: Commit style
-    description: How commits are written here
-    tags: [git, conventions]
-    applies_to: both
-    stack_signals: [pyproject.toml]
-    category: conventions
-    order: 10
-    ---
-
-    Prefer small commits.
-
-Every field is optional. A file with no frontmatter at all is a valid snippet.
-
-That format is deliberate, and it is the reason there is no database. Your
-library is your own writing, so it stays readable and editable in any editor,
-diffs cleanly in git, and keeps working if you uninstall mdcompose or it stops
-being maintained. A store that needed this tool to read it would make the tool a
-dependency of your notes.
-
-mdcompose writes nothing into that directory except snippet files. No index, no
-cache, no lock file, and it never touches an entry it did not create, so keeping
-the library in git or a synced folder works without the tool fighting you.
-
-The library starts empty. mdcompose ships no snippets and offers no starter
-content, because bundled opinions in your personal library would be something
-you then had to curate.
-
-## Pointing mdcompose somewhere else
-
-`MDCOMPOSE_CONFIG_DIR` overrides where the config and the default library live.
-Useful for keeping a scratch library while testing, or running more than one.
-
-    MDCOMPOSE_CONFIG_DIR=/tmp/scratch mdcompose snippet list
-
-## mdcompose.lock is committed
-
-A project managed by mdcompose gets a `mdcompose.lock` in its root, and that file
-belongs in version control.
-
-It is closer to `uv.lock` than to a machine-local cache. It records which
-snippets a project composed, in what order, in which mode, and it embeds each
-snippet's full content. Embedding is what makes it useful to anyone else:
-snippet ids resolve against a personal library nobody else has, so a manifest
-carrying only ids would work for its author and nobody else. With the content
-embedded, someone who clones or forks the project reproduces the same files with
-an empty library.
-
-It also records the hash of each managed block, which is how mdcompose tells its
-own output apart from a hand edit. Those hashes are computed over normalized
-content, so they are identical on Windows, WSL, Linux, and macOS, and a fresh
-clone reports clean whichever line ending convention the checkout used.
-
-Nothing machine-specific goes in: no absolute paths, no operating system, no
-hostname. The same file is correct on every machine.
-
-Note the naming, because it is the reverse of the npm convention some readers
-will expect: here there is one file, it is committed, and it pins resolved
-content. There is no second machine-local file.
-
-## Exit codes
-
-    0   healthy, nothing needs attention
-    1   the user or the environment needs attention
-    2   mdcompose itself failed
-
-## Conventions
-
-Output is plain ASCII. A Windows console on a cp1252 or cp437 code page cannot
-encode an emoji or an em dash, so emitting one would raise an encoding error on
-a platform this project treats as primary. The rule constrains what mdcompose
-writes itself; content it merely carries, such as a snippet body, is never
-altered.
-
-mdcompose makes no network requests and collects no telemetry.
-
-## How this compares to other tools
-
-A few projects cover the same core idea of a personal snippet library composed
-per project into agent config files:
-
-- **ai-rulesmith** (npm): reusable markdown atoms, per-project selection,
-  composed into a separate output file per agent, modeled on the ESLint
-  shareable-config pattern.
+- **ai-rulesmith** (npm): reusable Markdown atoms, per-project selection,
+  composed into a separate output file per agent.
 - **ai-rulez**: profiles and remote rule includes across many target tools,
   generating a static file per tool.
-- **ahmadzein/ContextVault**: a two-tier vault for Claude Code specifically,
-  global at `~/.claude/vault/` and per-project at `./.claude/vault/`.
+- **ContextVault**: a two-tier vault for Claude Code specifically, global and
+  per-project.
 
-What mdcompose does that they do not:
+What mdcompose does that they do not: import-versus-copy tied to Claude Code's
+real `@import`; drift detection by hashing one owned block; a committed lock
+with embedded content so a fork works without the author's library; and real
+Windows, WSL, and mounted-drive path correctness. It deliberately does no
+format translation: a target receives Markdown, not Cursor rules or Copilot
+instructions.
 
-- **Import versus copy, tied to Claude Code's real `@import`.** The others
-  generate a separate static file per tool. mdcompose can keep `CLAUDE.md` as a
-  live one-line reference to `AGENTS.md` so the two never drift, and falls back
-  to a materialized copy only when asked.
-- **Drift detection by hashing one managed block.** mdcompose owns a
-  comment-delimited region and nothing else, tells its own output apart from a
-  hand edit by a normalized hash, and asks before overwriting.
-- **A committed lock with embedded content.** `mdcompose.lock` reproduces a
-  project's files from an empty library, so a fork works without the author's
-  snippets.
-- **Real Windows, WSL, and mounted-drive path correctness**, treated as a
-  primary target rather than an afterthought.
+## Contributing
 
-It deliberately does no format translation: targets receive markdown, not
-Cursor rules or Copilot instructions. Converting between tool-specific formats
-is a different product.
+```bash
+uv sync
+uv run pytest
+uv run ruff check .
+uv run mdcompose doctor
+```
 
-## Development
+See `CONTRIBUTING.md` for the full workflow and `docs/core-contract.md` for the
+behavior specification.
 
-    uv sync
-    uv run pytest
-    uv run ruff check .
-    uv run mdcompose doctor
+## License
 
-The behavior contract that the core layer implements, written to be independent
-of Python, is in `docs/core-contract.md`. See `CONTRIBUTING.md` for the
-conventions CI enforces and how a change is planned.
+MIT. See [`LICENSE`](LICENSE).

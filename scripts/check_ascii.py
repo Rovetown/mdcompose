@@ -13,7 +13,10 @@ arguments; CI runs it with none and it scans every tracked text file.
     uv run python scripts/check_ascii.py a.py b.md  # just these
 
 Not scanned: binary files, lockfiles (`.lock`, a tool artifact full of hashes),
-and the test fixtures that deliberately carry specific bytes.
+the test fixtures that deliberately carry specific bytes, and `README.md`.
+`README.md` is rendered by GitHub and PyPI, never printed to a console, so it
+may use `tree`-style box-drawing characters and other typography. Every other
+document, and all of mdcompose's own tool output, stays under the rule.
 """
 
 from __future__ import annotations
@@ -24,6 +27,7 @@ from pathlib import Path
 
 SKIP_DIRS = {".git", ".venv", "fixtures", "runtime-env"}
 SKIP_SUFFIXES = {".lock"}
+SKIP_FILES = {Path("README.md")}
 
 
 def tracked_files() -> list[Path]:
@@ -40,6 +44,8 @@ def tracked_files() -> list[Path]:
 def is_authored(path: Path) -> bool:
     """True if this is a file whose characters mdcompose is responsible for."""
     if SKIP_DIRS & set(path.parts):
+        return False
+    if path in SKIP_FILES:
         return False
     return path.suffix not in SKIP_SUFFIXES
 

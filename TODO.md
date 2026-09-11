@@ -31,34 +31,92 @@ one belongs to. The Scorecard reasoning is in `docs/scorecard.md`.
    A SLSA `*.intoto.jsonl` scores 10 on Signed-Releases. Only runs on a stable
    tag; pre-releases get no GitHub Release. Nothing to verify until the first
    stable release lands the assets.
-3. **Alpha dry run.** Run `bump.yml` with channel `alpha`, confirm the tag
-   lands on TestPyPI only, install it in a clean venv
-   (`pip install -i https://test.pypi.org/simple/ mdcompose==<ver>`).
-   `bump.yml` runs `cz bump` from `version = "0.1.0.dev0"` with
-   `version_provider = "pep621"`; the first bump off a `.dev0` may need an
-   explicit `--increment`. `CHANGELOG.md` `[Unreleased]` is hand-written and
-   Keep a Changelog shaped; confirm the first `cz bump` regenerates it to match
-   before trusting the pipeline.
-4. **Stable release.** Run `bump.yml` with channel `stable`, approve the `pypi`
-   environment when the workflow pauses. Produces `v0.1.0` on PyPI and the first
-   GitHub Release. The Packaging check auto-resolves to 10 at this point,
-   because Scorecard recognises `pypa/gh-action-pypi-publish`.
+3. Done. Alpha dry run published `0.1.0a0` to TestPyPI, verified end to end:
+   `release.yml` build -> attest -> TestPyPI, `pypi` and `github-release` jobs
+   correctly skipped, `gh attestation verify` passed online and against the
+   staged `mdcompose.intoto.jsonl`, clean-venv `pip install` works. Two bugs
+   found and fixed on the way: `cz bump` left `uv.lock` stale (fixed in #12,
+   `bump.yml` now relocks and amends before the tag push) and a deleted
+   prerelease tag left commitizen unable to bound the next changelog (fixed by
+   reverting the botched bump in #13).
+
+### README (active, before the stable release)
+
+The README should be good before `0.1.0` reaches PyPI, since `readme =
+"README.md"` becomes the PyPI long description. Structure is agreed: lean
+front-door, ~130 to 200 lines, flat-square shields badges, near-zero emoji,
+ASCII diagrams and trees (no mermaid, because PyPI does not render it), HTML
+only for layout. Prose is neutral-dev, accessible to a non-expert without
+dropping the technical terms.
+
+Done: `README.md` written (from the v3 draft, demo GIF placed in Quickstart
+rather than Highlights, since the GIF shows the flow the Quickstart walks
+through), both drafts deleted, `scripts/check_ascii.py` exempts `README.md`
+via a `SKIP_FILES` set, and the Decisions log below records the exemption.
+Not yet committed.
+
+Still to finish:
+
+- **Record the demo GIF.** Not yet done. Plan: script an asciinema recording of
+  the real flow (create a snippet file, `mdcompose init` with the picker,
+  `mdcompose doctor` showing a clean then drifted state), convert with
+  `agg demo.cast docs/assets/mdcompose-demo.gif`. Keep it short, roughly 15 to
+  25 seconds, one clear take. Shot list to write next session: exact commands,
+  where to pause, terminal size and theme so it is re-recordable when output
+  changes. Store at `docs/assets/mdcompose-demo.gif`; both READMEs already
+  reference it by the absolute `raw.githubusercontent.com/.../main/...` URL so
+  it also renders on PyPI. `docs/assets/` does not exist yet.
+- **Logo / visual identity.** None exists. Decide whether `0.1.0` needs one. If
+  yes, a simple wordmark is enough; add it as a `<picture>` with light and dark
+  variants in the centered header block, above or replacing the tagline. If no,
+  ship text-only for now; the header already reads fine without it.
+- **Move the reference-level detail out of the README** into a new
+  `docs/concepts.md` (full snippet frontmatter schema, hash normalization,
+  `MDCOMPOSE_CONFIG_DIR`, the exit-code table, the ASCII and no-network
+  rationale, target projection specifics). The drafts already trimmed most of
+  this; the new page is where it lands. Link it from the README's Documentation
+  section.
+- **Verify the badges resolve** once `0.1.0` is on PyPI (the PyPI, pyversions,
+  and scorecard badges 404 or show "unknown" until then).
+
+### After the README, resume the release
+
+4. **Stable release.** Run `bump.yml` with channel `stable` (goes `0.1.0a0` ->
+   `0.1.0`), approve the `pypi` environment when the workflow pauses. Produces
+   `v0.1.0` on PyPI and the first GitHub Release. The Packaging check
+   auto-resolves to 10, because Scorecard recognises
+   `pypa/gh-action-pypi-publish`, and Signed-Releases scores 10 once the
+   `mdcompose.intoto.jsonl` asset lands on the Release.
+5. **Expand the `0.1.0` changelog entry.** `cz bump` regenerates `CHANGELOG.md`
+   from commit subjects only, so the stable `0.1.0` section is thin. After the
+   tag exists (and is therefore frozen for future bumps), a follow-up
+   `docs:` commit replaces cz's auto body with "Initial public release." plus
+   the reviewed `### Added` command list (kept verbatim from the old
+   `[Unreleased]` section) and the `### Security` SLSA-provenance note. Drop
+   cz's `### Changed` and `### Fixed` sections: there is no prior release to
+   change from. Confirmed cz does not preserve manual edits, so this must be
+   post-tag.
 
 ### After the first release
 
-5. **Post-release hardening.** Point `platform.ONEDRIVE_HELP_URL` at a real
+6. **Post-release hardening.** Point `platform.ONEDRIVE_HELP_URL` at a real
    page. Move the `Development Status` classifier off `3 - Alpha` when a release
    earns it.
-6. **OpenSSF Best Practices passing badge.** Register the repo at
+7. **OpenSSF Best Practices passing badge.** Register the repo at
    bestpractices.dev, complete the passing questionnaire (most criteria are
    already met by the existing CI, tests, license, and static analysis), embed
    the badge in the README. Scorecard's CII-Best-Practices check reads it
    through the API: 0 to 5. Silver and gold are not attainable for a
    solo-maintained project, so passing is the target. See `docs/scorecard.md`.
+8. **Dismiss the permanent Scorecard code-scanning alerts.** Code-Review,
+   Branch-Protection, and Fuzzing are solo-maintainer structural or a
+   deliberate non-goal (see `docs/scorecard.md`, Accepted limitations). Dismiss
+   them as "won't fix" in the Security tab so the alert count stays meaningful;
+   leave Maintained and CII-Best-Practices to self-resolve.
 
 ### Not planned
 
-7. **Fuzzing.** Left at 0. Scorecard does not detect Python Hypothesis, and an
+9. **Fuzzing.** Left at 0. Scorecard does not detect Python Hypothesis, and an
    Atheris plus ClusterFuzzLite setup is out of proportion to the risk for two
    small parsers. Revisit only if the parser surface grows.
 
@@ -90,6 +148,12 @@ one belongs to. The Scorecard reasoning is in `docs/scorecard.md`.
 - **Typer floor matters more than the Python floor.** The CLI error boundary catches `typer.TyperException`, which is how the usage-error family is reached now that Typer 0.27 vendors Click as a private module. Versions 0.12, 0.15 and 0.19 do not expose it, and because Python evaluates an except clause lazily, an older Typer would have looked fine until a user mistyped a flag. Floor is `>=0.27` and a test asserts the attribute exists.
 - **Managed block marker prefix: `mdcompose`, renamed from `agentsmd` before v1.** The markers are `<!-- mdcompose:<block-id>:start -->`. The prefix was `agentsmd`, left over from the project's former name, while every other user-visible identifier (package, CLI, config dir, `mdcompose.lock`, the `generated_by` string) already said `mdcompose`. The marker format is a frozen compatibility surface once real files carry blocks: changing it later orphans every block already written and needs a migration command. A run against a fresh checkout confirmed nothing on disk depended on the old prefix yet, so it was aligned then, which was the last free moment. Constant lives at `managed_block.MARKER_PREFIX`; `test_marker_strings_are_exactly_this` locks the exact strings.
 - **Writing convention: plain ASCII everywhere.** No em dashes, en dashes, arrows, emoji, or smart quotes, in project documents or in mdcompose's own output. A Windows console on a cp1252 or cp437 code page cannot encode them, so emitting one raises UnicodeEncodeError on the primary target platform; emoji also break column alignment through ambiguous width, and screen readers announce them verbatim. The rule constrains generated text only. Content mdcompose transports, such as a snippet body, is carried unaltered. CI enforces it with `scripts/check_ascii.py`.
+  - **Exception: `README.md`, decided during the v1 README rewrite.** The README
+    is rendered by GitHub and PyPI, never printed to a console, and is meant to
+    look polished: it may use `tree`-style box-drawing characters and other
+    typography. `scripts/check_ascii.py` skips it. Every other document, and all
+    tool output, stays under the rule. Same class of maintainer reversal as the
+    OneDrive-detection decision.
 - **Interface: CLI first, TUI later as a second adapter.** The CLI is the interface that must run unattended, so the scriptability contract (exit codes, stream discipline, JSON output, a flag for every prompt) belongs to it and has no TUI equivalent. See the TUI section under Roadmap.
 - **Config and manifest format: JSON for both.** TOML was reconsidered specifically for the global config, since it is the one file most likely to be hand-edited and TOML allows comments, but kept as JSON for simplicity: one parser, one format, no second dependency. YAML is used only for snippet frontmatter, which is the one hand-authored file type.
 - **Release model: philosophy C, commitizen `cz bump` dispatched from `bump.yml`.**
