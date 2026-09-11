@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "mdcompose"
 version = "0.1.1"
-description = "Manage CLAUDE.md and AGENTS.md, and compose them from a personal snippet library"
+description = "Keep CLAUDE.md and AGENTS.md in sync and composed from a personal snippet library, without hand-editing every project"
 readme = "README.md"
 # Every dependency declares >=3.10 and the suite passes on 3.10, so this floor
 # is a policy choice, not a technical one: 3.10 reaches end of life in October
@@ -14,7 +14,26 @@ requires-python = ">=3.11"
 license = "MIT"
 license-files = ["LICENSE"]
 authors = [{ name = "Rovetown" }]
-keywords = ["claude", "agents.md", "claude.md", "cli", "ai-coding"]
+keywords = [
+  "claude",
+  "agents.md",
+  "claude.md",
+  "cli",
+  "ai-coding",
+  "ai-agents",
+  "markdown",
+  "dotfiles",
+  "developer-tools",
+  # Roadmap, not yet implemented (see TODO.md); kept here since discovery on
+  # PyPI happens before the feature ships, not after.
+  "tui",
+  "snippet-library",
+  "ai-skills",
+  "vscode",
+  "jetbrains",
+  "zed",
+  "ide",
+]
 classifiers = [
   "Development Status :: 4 - Beta",
   "Environment :: Console",
@@ -43,6 +62,9 @@ dependencies = [
 
 [project.urls]
 Homepage = "https://github.com/Rovetown/mdcompose"
+Repository = "https://github.com/Rovetown/mdcompose"
+Documentation = "https://github.com/Rovetown/mdcompose/blob/main/docs/concepts.md"
+Changelog = "https://github.com/Rovetown/mdcompose/blob/main/CHANGELOG.md"
 Issues = "https://github.com/Rovetown/mdcompose/issues"
 
 [project.scripts]
