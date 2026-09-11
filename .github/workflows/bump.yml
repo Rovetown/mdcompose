@@ -12,6 +12,14 @@ name: bump
 # the last tag, rewrites [project].version and CHANGELOG.md, commits, and pushes
 # the tag that release.yml publishes on. You never type a version.
 #
+# cz bump only bumps when at least one commit since the last tag is feat:,
+# fix:, or carries a BREAKING CHANGE: / ! marker; docs:/chore:/etc. alone
+# exit NO_COMMITS_TO_BUMP (hit for real on 2026-09-11, trying to ship a
+# classifiers-only fix). The "increment" input overrides that for a release
+# that is genuinely warranted despite having no feat:/fix: commit yet.
+# Leave it on "auto" otherwise: it exists for the exception, not as the
+# default way to cut a release.
+#
 # Requires a repository secret RELEASE_TOKEN: a fine-grained PAT (or GitHub App
 # token) with contents:write. The built-in GITHUB_TOKEN cannot be used here,
 # because a tag it pushes does not trigger release.yml and its push is blocked by
@@ -29,6 +37,15 @@ on:
           - alpha
           - beta
           - rc
+      increment:
+        description: "Force this increment (bypasses NO_COMMITS_TO_BUMP); leave on auto normally"
+        type: choice
+        default: auto
+        options:
+          - auto
+          - PATCH
+          - MINOR
+          - MAJOR
 
 # Never let two bumps run at once.
 concurrency:
@@ -71,12 +88,16 @@ jobs:
       - name: Bump
         env:
           PRERELEASE: ${{ inputs.prerelease }}
+          INCREMENT: ${{ inputs.increment }}
         run: |
-          if [ "$PRERELEASE" = "stable" ]; then
-            uv run --no-sync cz bump --yes --changelog
-          else
-            uv run --no-sync cz bump --yes --changelog --prerelease "$PRERELEASE"
+          args=(--yes --changelog)
+          if [ "$PRERELEASE" != "stable" ]; then
+            args+=(--prerelease "$PRERELEASE")
           fi
+          if [ "$INCREMENT" != "auto" ]; then
+            args+=(--increment "$INCREMENT")
+          fi
+          uv run --no-sync cz bump "${args[@]}"
 
       - name: Fold the refreshed lockfile into the bump commit
         # cz bump rewrites [project].version but not uv.lock, which pins the
