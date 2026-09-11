@@ -16,11 +16,18 @@ license-files = ["LICENSE"]
 authors = [{ name = "Rovetown" }]
 keywords = ["claude", "agents.md", "claude.md", "cli", "ai-coding"]
 classifiers = [
-  "Development Status :: 3 - Alpha",
+  "Development Status :: 4 - Beta",
   "Environment :: Console",
   "Intended Audience :: Developers",
   "Operating System :: OS Independent",
   "Programming Language :: Python :: 3",
+  # Listed individually because PyPI (and shields.io's pypi/pyversions badge)
+  # reads these, not requires-python, to know which versions are supported.
+  # Keep in sync with the CI matrix and requires-python's floor.
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
   "Topic :: Software Development :: Build Tools",
 ]
 dependencies = [

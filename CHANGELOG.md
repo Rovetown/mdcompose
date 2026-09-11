@@ -5,16 +5,28 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## v0.1.0 (2026-09-11)
 
+Initial public release.
+
 ### Added
 
-- mdcompose, a CLAUDE.md and AGENTS.md management CLI
+- `init`, `doctor`, `snippet list` / `edit` / `remove` / `adopt`.
+- `import <file>`: pull sections out of an existing CLAUDE.md or AGENTS.md and
+  apply them to the project, with `--save-as-snippet` to promote one into the
+  library.
+- `convert <source> <target>`: move unmanaged content between the project's
+  AGENTS.md and CLAUDE.md, with a mandatory diff.
+- `eject`: remove mdcompose's markers and manifest from a directory, keeping the
+  content by default or stripping it with `--strip`.
+- `config show` / `set` / `unset` / `edit`.
+- `target add` / `list` / `remove`: register another tool's global file and
+  project the canonical global AGENTS.md into it.
+- `init --reapply`: re-compose from the recorded selection without the picker.
+- A warning on `doctor` and `init` when a managed path is inside a
+  OneDrive-synced folder (Windows).
 
-### Changed
+### Security
 
-- break the cli and command import cycle (#10)
-- harden the file I/O layer and fuzz the two parsers
-- enforce static typing and tighten the lint rules
-
-### Fixed
-
-- **bump**: relock uv.lock after cz bump (#12)
+- Release artifacts carry a SLSA build provenance attestation, signed with a
+  short-lived Sigstore certificate and recorded in the GitHub attestations API.
+  The provenance bundle is also attached to each GitHub Release. Verify with
+  `gh attestation verify <file> --repo Rovetown/mdcompose`.

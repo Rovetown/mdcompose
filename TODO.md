@@ -79,27 +79,34 @@ Still to finish:
 
 ### After the README, resume the release
 
-4. **Stable release.** Run `bump.yml` with channel `stable` (goes `0.1.0a0` ->
-   `0.1.0`), approve the `pypi` environment when the workflow pauses. Produces
-   `v0.1.0` on PyPI and the first GitHub Release. The Packaging check
-   auto-resolves to 10, because Scorecard recognises
-   `pypa/gh-action-pypi-publish`, and Signed-Releases scores 10 once the
-   `mdcompose.intoto.jsonl` asset lands on the Release.
-5. **Expand the `0.1.0` changelog entry.** `cz bump` regenerates [`CHANGELOG.md`](CHANGELOG.md)
-   from commit subjects only, so the stable `0.1.0` section is thin. After the
-   tag exists (and is therefore frozen for future bumps), a follow-up
-   `docs:` commit replaces cz's auto body with "Initial public release." plus
-   the reviewed `### Added` command list (kept verbatim from the old
-   `[Unreleased]` section) and the `### Security` SLSA-provenance note. Drop
-   cz's `### Changed` and `### Fixed` sections: there is no prior release to
-   change from. Confirmed cz does not preserve manual edits, so this must be
-   post-tag.
+4. Done. `bump.yml` ran with channel `stable`, `0.1.0a0` -> `0.1.0`, `v0.1.0`
+   tagged, the `pypi` environment approved. `v0.1.0` is live on PyPI and the
+   first GitHub Release exists with the SBOM and attestation assets attached.
+5. Done. [`CHANGELOG.md`](CHANGELOG.md)'s `## v0.1.0` entry replaced cz's thin
+   auto body ("break the cli and command import cycle", "relock uv.lock",
+   etc., none of which belong in a *user-facing* changelog) with "Initial
+   public release." plus the full `### Added` command list restored verbatim
+   from the old `[Unreleased]` section (recovered from commit `2252051`, since
+   the alpha bump had already consumed it) and the `### Security`
+   SLSA-provenance note. cz's `### Changed` and `### Fixed` sections dropped:
+   there is no prior release to change from.
+
+Also done in this pass, discovered from the live PyPI listing: the
+`pypi/pyversions` badge showed a bare "Python 3" rather than the real
+supported range, because shields.io reads PyPI's classifiers, not
+`requires-python`, and only a bare `Programming Language :: Python :: 3` was
+listed. `pyproject.toml` now lists `3.11` through `3.14` individually,
+matching the CI matrix. This only takes effect on the *next* release; it does
+not retroactively fix the metadata already published for `0.1.0`.
 
 ### After the first release
 
-6. **Post-release hardening.** Point `platform.ONEDRIVE_HELP_URL` at a real
-   page. Move the `Development Status` classifier off `3 - Alpha` when a release
-   earns it.
+6. **Post-release hardening.** Partly done: `Development Status` moved to
+   `4 - Beta` (the v1 feature set is complete and tested -- all 8 OpenSpec
+   changes shipped, 93%+ coverage, mutation-tested, hardening review done --
+   but pre-1.0 semver still allows a breaking change, so Beta fits better than
+   a Stable claim; also takes effect on the next release only). Still open:
+   point `platform.ONEDRIVE_HELP_URL` at a real page.
 7. **OpenSSF Best Practices passing badge.** Register the repo at
    bestpractices.dev, complete the passing questionnaire (most criteria are
    already met by the existing CI, tests, license, and static analysis), embed
@@ -421,7 +428,8 @@ live remaining work is in the `Next` section at the top of this file.
 
 Post-repo, at the release that earns it:
 
-- [ ] Move the `Development Status` classifier off `3 - Alpha`.
+- [x] Move the `Development Status` classifier off `3 - Alpha`. Done: moved to
+  `4 - Beta` (see the `Next` section above for the reasoning).
 - [ ] Add a new Python to the CI matrix by hand when its first release
   candidate lands (annual, not worth a regex manager).
 - [ ] Point `platform.ONEDRIVE_HELP_URL` (`https://mdcompose.dev/onedrive`) at a
