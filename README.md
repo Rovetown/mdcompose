@@ -6,7 +6,13 @@
 
 </div>
 
+---
+
+<div align="center">
+
 [![PyPI](https://img.shields.io/pypi/v/mdcompose?style=for-the-badge)](https://pypi.org/project/mdcompose/) [![Python](https://img.shields.io/pypi/pyversions/mdcompose?style=for-the-badge)](https://pypi.org/project/mdcompose/) [![CI](https://img.shields.io/github/actions/workflow/status/Rovetown/mdcompose/ci.yml?branch=main&style=for-the-badge&label=CI)](https://github.com/Rovetown/mdcompose/actions/workflows/ci.yml) [![OpenSSF Scorecard](https://img.shields.io/ossf-scorecard/github.com/Rovetown/mdcompose?style=for-the-badge&label=scorecard)](https://scorecard.dev/viewer/?uri=github.com/Rovetown/mdcompose) [![License: MIT](https://img.shields.io/badge/license-MIT-blue?style=for-the-badge)](https://github.com/Rovetown/mdcompose/blob/main/LICENSE) [![Downloads](https://img.shields.io/pypi/dm/mdcompose?style=for-the-badge)](https://pypi.org/project/mdcompose/)
+
+</div>
 
 Most repositories need the same handful of instructions for AI coding agents: how commits are written, which test command to run, which files not to touch.
 mdcompose keeps those as small snippets in one place and builds each project's `AGENTS.md` and `CLAUDE.md` from the ones you pick, so you stop copying the same paragraphs between repositories.
