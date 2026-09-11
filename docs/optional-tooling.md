@@ -1,25 +1,18 @@
 # Optional and adjacent tooling
 
-Tools worth knowing about beyond the picks in
-`docs/commit-and-release-tooling.md`. None is required.
+Tools worth knowing about beyond the picks in [docs/commit-and-release-tooling.md](commit-and-release-tooling.md).
+None is required.
 
 Two views of the same catalogue:
 
-1. **By fit for mdcompose** - the actionable view: adopt now, dormant, later, or
-   never, with the reason.
-2. **Quick index by job** - the reference view, for a "what are my options for
-   X" lookup.
+1. **By fit for mdcompose** - the actionable view: adopt now, dormant, later, or never, with the reason.
+2. **Quick index by job** - the reference view, for a "what are my options for X" lookup.
 
-The baseline picks are decided in the other doc and not repeated in the fit
-tables: `pre-commit`, `commitizen`, `gitleaks`, GitHub native secret scanning,
-`zizmor`. `coverage.py` and `pytest-benchmark` are already in the roadmap
-quality pass, so they appear below marked "(already planned)".
+The baseline picks are decided in the other doc and not repeated in the fit tables: `pre-commit`, `commitizen`, `gitleaks`, GitHub native secret scanning, `zizmor`. `coverage.py` and `pytest-benchmark` are already in the roadmap quality pass, so they appear below marked "(already planned)".
 
 ## By fit for mdcompose
 
-Context that sets the tiers: solo maintainer, pure-Python CLI, pre-1.0, plain
-ASCII enforced, a TUI planned as a later second adapter, no public repo yet,
-release model is commitizen `cz bump` (philosophy C).
+Context that sets the tiers: solo maintainer, pure-Python CLI, pre-1.0, plain ASCII enforced, a TUI planned as a later second adapter, no public repo yet, release model is commitizen `cz bump` (philosophy C).
 
 ### Strong fit - adopt during the automation baseline or the quality pass
 
@@ -56,69 +49,31 @@ release model is commitizen `cz bump` (philosophy C).
 
 ### Removed from the shortlist as unnecessary for this project
 
-`python-semantic-release` (fully-automatic on-merge releases; replaces the
-`cz bump` model and removes the human gate - out of scope), `hatch-vcs` /
-`hatch version` / `setuptools-scm` / `versioningit` / `dunamai` (tag-derived or
-manual version tooling; `cz bump` writes `version` in `pyproject.toml` directly,
-no version-derivation layer is used), `release-please` (a second release brain
-next to commitizen), `cocogitto` (Rust; duplicates commitizen and adds a
-binary), `release-drafter` (only useful with a PR-based release flow),
-`MkDocs + Material` and `mkdocstrings` and `Sphinx` and `Read the Docs` (no docs
-site planned; the README and `docs/` suffice), `ty` and `pyright` /
-`basedpyright` (one type checker, mypy, is enough), `conventional-pre-commit`
-(commitizen's `cz check` covers commit-message linting), `pinact` / `ratchet`
-(Renovate's `helpers:pinGitHubActionDigests` pins action SHAs), `radon` /
-`xenon` (the four-indent rule and small modules already bound complexity),
-`Dependabot` version updates (Renovate owns version bumps; Dependabot *security*
-updates are separate and kept), `towncrier` (removed by decision, see below).
+`python-semantic-release` (fully-automatic on-merge releases; replaces the `cz bump` model and removes the human gate - out of scope), `hatch-vcs` / `hatch version` / `setuptools-scm` / `versioningit` / `dunamai` (tag-derived or manual version tooling; `cz bump` writes `version` in `pyproject.toml` directly, no version-derivation layer is used), `release-please` (a second release brain next to commitizen), `cocogitto` (Rust; duplicates commitizen and adds a binary), `release-drafter` (only useful with a PR-based release flow), `MkDocs + Material` and `mkdocstrings` and `Sphinx` and `Read the Docs` (no docs site planned; the README and `docs/` suffice), `ty` and `pyright` / `basedpyright` (one type checker, mypy, is enough), `conventional-pre-commit` (commitizen's `cz check` covers commit-message linting), `pinact` / `ratchet` (Renovate's `helpers:pinGitHubActionDigests` pins action SHAs), `radon` / `xenon` (the four-indent rule and small modules already bound complexity), `Dependabot` version updates (Renovate owns version bumps; Dependabot *security* updates are separate and kept), `towncrier` (removed by decision, see below).
 
 ### Wrong ecosystem or redundant - recorded only as considered
 
-`semantic-release` (JS), `changesets` (JS monorepo), `release-plz` (Rust
-crates), `knope` (replaces commitizen for no gain), `auto` (label-driven JS),
-`git-cliff` / `git-chglog` (dedicated changelog generators; commitizen writes
-the changelog), `sigstore` / `cosign` (PEP 740 attestations already cover a
-pure-Python PyPI package), `reuse` (per-file SPDX headers, for projects that
-vendor code), `bandit` (overlaps CodeQL's Python queries), `git-absorb` (a
-personal git convenience, not project tooling).
+`semantic-release` (JS), `changesets` (JS monorepo), `release-plz` (Rust crates), `knope` (replaces commitizen for no gain), `auto` (label-driven JS), `git-cliff` / `git-chglog` (dedicated changelog generators; commitizen writes the changelog), `sigstore` / `cosign` (PEP 740 attestations already cover a pure-Python PyPI package), `reuse` (per-file SPDX headers, for projects that vendor code), `bandit` (overlaps CodeQL's Python queries), `git-absorb` (a personal git convenience, not project tooling).
 
 ### Decision: commitizen keeps the changelog, towncrier dropped
 
-`cz bump` does the version bump, changelog, commit, and tag in one step from a
-Jinja2 template the project controls. Dedicated changelog generators (git-cliff,
-git-chglog) add a separate binary and config file for output polish a solo
-pre-1.0 project does not need. `towncrier` (a human-written news fragment per
-PR, assembled at release) was evaluated and dropped: its payoff scales with the
-number of outside contributors, currently zero, and commit subjects enforced by
-`cz check` are the changelog source. Revisit only if the commitizen template
-cannot produce the Keep a Changelog format wanted, or if per-PR reviewed
-changelog lines become valuable once contributors arrive.
+`cz bump` does the version bump, changelog, commit, and tag in one step from a Jinja2 template the project controls.
+Dedicated changelog generators (git-cliff, git-chglog) add a separate binary and config file for output polish a solo pre-1.0 project does not need. `towncrier` (a human-written news fragment per PR, assembled at release) was evaluated and dropped: its payoff scales with the number of outside contributors, currently zero, and commit subjects enforced by `cz check` are the changelog source.
+Revisit only if the commitizen template cannot produce the Keep a Changelog format wanted, or if per-PR reviewed changelog lines become valuable once contributors arrive.
 
 ### Decision: secret scanning is gitleaks plus GitHub native, and trufflehog once
 
-`gitleaks` runs as a pre-commit hook (staged diff) and a CI job (full history on
-every push and PR). GitHub native secret scanning and push protection are
-enabled at repo-creation time. `trufflehog` runs **once, locally, over the full
-history immediately before the repo goes public** (`trufflehog git file://.
---only-verified`), is confirmed clean, and is then never run again - it is not a
-hook and not a CI job. `detect-secrets` is not used: its committed
-`.secrets.baseline` is more ceremony than gitleaks' inline ignore for no added
-coverage here.
+`gitleaks` runs as a pre-commit hook (staged diff) and a CI job (full history on every push and PR).
+GitHub native secret scanning and push protection are enabled at repo-creation time. `trufflehog` runs **once, locally, over the full history immediately before the repo goes public** (`trufflehog git file://. --only-verified`), is confirmed clean, and is then never run again - it is not a hook and not a CI job. `detect-secrets` is not used: its committed `.secrets.baseline` is more ceremony than gitleaks' inline ignore for no added coverage here.
 
 ## Quick index by job
 
-- **Version storage / derivation**: none - `cz bump` writes `version` in
-  `pyproject.toml` directly, no derivation layer
+- **Version storage / derivation**: none - `cz bump` writes `version` in `pyproject.toml` directly, no derivation layer
 - **Release automation**: commitizen `cz bump` (pick, philosophy C)
 - **Changelog**: commitizen (pick)
-- **Actions security and hygiene**: zizmor (pick), actionlint,
-  check-github-workflows
-- **Dependency and vulnerability scanning**: pip-audit (in use), grype (in use),
-  osv-scanner (adopt), dependency-review-action (needs repo), Dependabot
-  security updates (needs repo)
+- **Actions security and hygiene**: zizmor (pick), actionlint, check-github-workflows
+- **Dependency and vulnerability scanning**: pip-audit (in use), grype (in use), osv-scanner (adopt), dependency-review-action (needs repo), Dependabot security updates (needs repo)
 - **Static types**: mypy (recommended)
-- **Test quality and benchmarking**: coverage.py, hypothesis, pytest-benchmark,
-  pytest-randomly, mutmut (`mutation.yml`, weekly cron, non-blocking),
-  codspeed (dormant)
+- **Test quality and benchmarking**: coverage.py, hypothesis, pytest-benchmark, pytest-randomly, mutmut (`mutation.yml`, weekly cron, non-blocking), codspeed (dormant)
 - **Dead code and docstrings**: deptry, vulture (one-off), interrogate
 - **Contributor meta**: all-contributors (dormant)

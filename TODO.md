@@ -11,11 +11,11 @@ release setup" below is complete (ruleset, `RELEASE_TOKEN`, the `pypi` and
 `testpypi` environments, both trusted publishers, Dependabot, private
 vulnerability reporting). What remains is the first release, a few follow-ups,
 and a set of OpenSSF Scorecard items folded into the sequence at the step each
-one belongs to. The Scorecard reasoning is in `docs/scorecard.md`.
+one belongs to. The Scorecard reasoning is in [`docs/scorecard.md`](docs/scorecard.md).
 
 ### Do now, before the next Scorecard run
 
-1. Done. `SECURITY.md` now carries the private-advisory URL
+1. Done. [`SECURITY.md`](SECURITY.md) now carries the private-advisory URL
    (`https://github.com/Rovetown/mdcompose/security/advisories/new`), which is
    what the Security-Policy check's linking requirement wants. Confirm the check
    reaches 10 on the next `scorecard.yml` run.
@@ -49,11 +49,11 @@ emoji, ASCII diagrams and trees (no mermaid, because PyPI does not render it),
 HTML only for layout. Prose is neutral-dev, accessible to a non-expert without
 dropping the technical terms.
 
-Done: `README.md` written (from the v3 draft, demo GIF placed in Quickstart
+Done: [`README.md`](README.md) written (from the v3 draft, demo GIF placed in Quickstart
 rather than Highlights, since the GIF shows the flow the Quickstart walks
-through), both drafts deleted, `scripts/check_ascii.py` exempts `README.md`
+through), both drafts deleted, `scripts/check_ascii.py` exempts [`README.md`](README.md)
 via a `SKIP_FILES` set (Decisions log below records it), reference-level detail
-moved out to `docs/concepts.md`, and a logo added: `docs/assets/mdcompose-logo.svg`
+moved out to [`docs/concepts.md`](docs/concepts.md), and a logo added: `docs/assets/mdcompose-logo.svg`
 in the centered header (replacing the `# mdcompose` text heading), referenced
 by the same absolute `raw.githubusercontent.com/.../main/...` URL as the demo
 GIF so it also renders on PyPI, and `docs/assets/**` excluded from the sdist in
@@ -81,7 +81,7 @@ Still to finish:
    auto-resolves to 10, because Scorecard recognises
    `pypa/gh-action-pypi-publish`, and Signed-Releases scores 10 once the
    `mdcompose.intoto.jsonl` asset lands on the Release.
-5. **Expand the `0.1.0` changelog entry.** `cz bump` regenerates `CHANGELOG.md`
+5. **Expand the `0.1.0` changelog entry.** `cz bump` regenerates [`CHANGELOG.md`](CHANGELOG.md)
    from commit subjects only, so the stable `0.1.0` section is thin. After the
    tag exists (and is therefore frozen for future bumps), a follow-up
    `docs:` commit replaces cz's auto body with "Initial public release." plus
@@ -101,10 +101,10 @@ Still to finish:
    already met by the existing CI, tests, license, and static analysis), embed
    the badge in the README. Scorecard's CII-Best-Practices check reads it
    through the API: 0 to 5. Silver and gold are not attainable for a
-   solo-maintained project, so passing is the target. See `docs/scorecard.md`.
+   solo-maintained project, so passing is the target. See [`docs/scorecard.md`](docs/scorecard.md).
 8. **Dismiss the permanent Scorecard code-scanning alerts.** Code-Review,
    Branch-Protection, and Fuzzing are solo-maintainer structural or a
-   deliberate non-goal (see `docs/scorecard.md`, Accepted limitations). Dismiss
+   deliberate non-goal (see [`docs/scorecard.md`](docs/scorecard.md), Accepted limitations). Dismiss
    them as "won't fix" in the Security tab so the alert count stays meaningful;
    leave Maintained and CII-Best-Practices to self-resolve.
 
@@ -118,8 +118,8 @@ Still to finish:
 
 | Question | Answer lives in |
 | -------- | --------------- |
-| How shipped behavior is defined | `docs/core-contract.md` |
-| Conventions and how to work here | `CONTRIBUTING.md` |
+| How shipped behavior is defined | [`docs/core-contract.md`](docs/core-contract.md) |
+| Conventions and how to work here | [`CONTRIBUTING.md`](CONTRIBUTING.md) |
 | Why a decision was made | this file, Decisions log |
 | What is still open | this file, the sections below |
 
@@ -141,8 +141,8 @@ Still to finish:
 - **Python floor: `>=3.11`, and it is a policy choice rather than a technical one.** Measured rather than assumed: every runtime dependency and every dev dependency declares `>=3.10`, and the full suite passes unmodified on 3.10 through 3.14. So nothing forces a floor above 3.10. The floor sits at 3.11 because Python 3.10 reaches end of life on 2026-10-31, and a supported floor that stops receiving security fixes almost immediately buys reach that is not worth a matrix entry. 3.11 is supported until October 2027 and is what Debian 12 ships. Lowering to 3.10 is a two-line change (`requires-python` and ruff's `target-version`).
 - **Typer floor matters more than the Python floor.** The CLI error boundary catches `typer.TyperException`, which is how the usage-error family is reached now that Typer 0.27 vendors Click as a private module. Versions 0.12, 0.15 and 0.19 do not expose it, and because Python evaluates an except clause lazily, an older Typer would have looked fine until a user mistyped a flag. Floor is `>=0.27` and a test asserts the attribute exists.
 - **Managed block marker prefix: `mdcompose`, renamed from `agentsmd` before v1.** The markers are `<!-- mdcompose:<block-id>:start -->`. The prefix was `agentsmd`, left over from the project's former name, while every other user-visible identifier (package, CLI, config dir, `mdcompose.lock`, the `generated_by` string) already said `mdcompose`. The marker format is a frozen compatibility surface once real files carry blocks: changing it later orphans every block already written and needs a migration command. A run against a fresh checkout confirmed nothing on disk depended on the old prefix yet, so it was aligned then, which was the last free moment. Constant lives at `managed_block.MARKER_PREFIX`; `test_marker_strings_are_exactly_this` locks the exact strings.
-- **Writing convention: plain ASCII everywhere.** No em dashes, en dashes, arrows, emoji, or smart quotes, in project documents or in mdcompose's own output. A Windows console on a cp1252 or cp437 code page cannot encode them, so emitting one raises UnicodeEncodeError on the primary target platform; emoji also break column alignment through ambiguous width, and screen readers announce them verbatim. The rule constrains generated text only. Content mdcompose transports, such as a snippet body, is carried unaltered. CI enforces it with `scripts/check_ascii.py`.
-  - **Exception: `README.md`, decided during the v1 README rewrite.** The README
+- **Writing convention: plain ASCII everywhere.** No em dashes, en dashes, arrows, emoji, or smart quotes, in project documents or in mdcompose's own output. A Windows console on a [`cp1252`](https://en.wikipedia.org/wiki/Windows-1252) or [`cp437`](https://en.wikipedia.org/wiki/Code_page_437) code page (the legacy, non-Unicode character encodings a Windows terminal still defaults to) cannot encode them, so emitting one raises UnicodeEncodeError on the primary target platform; emoji also break column alignment through ambiguous width, and screen readers announce them verbatim. The rule constrains generated text only. Content mdcompose transports, such as a snippet body, is carried unaltered. CI enforces it with `scripts/check_ascii.py`.
+  - **Exception: [`README.md`](README.md), decided during the v1 README rewrite.** The README
     is rendered by GitHub and PyPI, never printed to a console, and is meant to
     look polished: it may use `tree`-style box-drawing characters and other
     typography. `scripts/check_ascii.py` skips it. Every other document, and all
@@ -151,7 +151,7 @@ Still to finish:
 - **Interface: CLI first, TUI later as a second adapter.** The CLI is the interface that must run unattended, so the scriptability contract (exit codes, stream discipline, JSON output, a flag for every prompt) belongs to it and has no TUI equivalent. See the TUI section under Roadmap.
 - **Config and manifest format: JSON for both.** TOML was reconsidered specifically for the global config, since it is the one file most likely to be hand-edited and TOML allows comments, but kept as JSON for simplicity: one parser, one format, no second dependency. YAML is used only for snippet frontmatter, which is the one hand-authored file type.
 - **Release model: philosophy C, commitizen `cz bump` dispatched from `bump.yml`.**
-  The field has four models (see `docs/commit-and-release-tooling.md` section 3).
+  The field has four models (see [`docs/commit-and-release-tooling.md`](docs/commit-and-release-tooling.md) section 3).
   C is chosen because commitizen is already the commit-message tool, so bump +
   changelog + tag in the same tool is one config and one mental model, and a
   `workflow_dispatch` trigger is the human gate a solo maintainer needs.
@@ -176,7 +176,7 @@ Still to finish:
   history immediately before the repo goes public** (`trufflehog git file://.
   --only-verified`), is confirmed clean, and is then never run again: not a
   hook, not a CI job. detect-secrets and per-commit trufflehog were considered
-  and rejected in `docs/commit-and-release-tooling.md`.
+  and rejected in [`docs/commit-and-release-tooling.md`](docs/commit-and-release-tooling.md).
 - **No version-derivation tooling.** `cz bump` writes `version` in
   `pyproject.toml` directly. hatch-vcs, `hatch version`, setuptools-scm,
   versioningit, and dunamai were all considered and rejected: a layer that
@@ -187,16 +187,16 @@ Still to finish:
 
 ## Reference docs
 
-- `docs/versioning-explained.md` - how a number becomes `0.3.2` vs `0.4.0` vs
+- [`docs/versioning-explained.md`](docs/versioning-explained.md) - how a number becomes `0.3.2` vs `0.4.0` vs
   `1.0.0`, where `alpha` / `beta` / `rc` fit, and how a `workflow_dispatch`
   input picks the release channel.
-- `docs/commit-and-release-tooling.md` - the tool comparison and the picks.
-- `docs/optional-tooling.md` - everything adjacent, none required, with an
+- [`docs/commit-and-release-tooling.md`](docs/commit-and-release-tooling.md) - the tool comparison and the picks.
+- [`docs/optional-tooling.md`](docs/optional-tooling.md) - everything adjacent, none required, with an
   adopt / dormant / rejected split.
-- `docs/publishing.md` - the publish and maintenance plan.
-- `docs/benchmarks.md` - the performance baseline and how to run the suite.
-- `docs/hardening-review.md` - the one-time file-I/O and parser review.
-- `docs/scorecard.md` - the OpenSSF Scorecard score, the gap analysis, and
+- [`docs/publishing.md`](docs/publishing.md) - the publish and maintenance plan.
+- [`docs/benchmarks.md`](docs/benchmarks.md) - the performance baseline and how to run the suite.
+- [`docs/hardening-review.md`](docs/hardening-review.md) - the one-time file-I/O and parser review.
+- [`docs/scorecard.md`](docs/scorecard.md) - the OpenSSF Scorecard score, the gap analysis, and
   what is and is not worth fixing. The action items are in the `Next` section
   above.
 
@@ -247,7 +247,7 @@ In the repo now: `ci.yml` (test matrix 3 OS x Python 3.11-3.14, `lint` (ruff +
 families), `release.yml` (`v*` tag), `bump.yml` (the dispatched release button),
 `mutation.yml` (weekly `mutmut`), `codeql.yml`, `scorecard.yml`,
 `python-eol.yml`. `.pre-commit-config.yaml` carries a `ci:` block for
-pre-commit.ci. `SECURITY.md` points at private vulnerability reporting.
+pre-commit.ci. [`SECURITY.md`](SECURITY.md) points at private vulnerability reporting.
 
 What each of the newer pieces does:
 
@@ -381,8 +381,8 @@ personal unpublished use, never for anything released.
 
 ## Repository and release setup (needs the repo)
 
-Plan and rationale: `docs/publishing.md`. In-repo artifacts (`release.yml`,
-`CHANGELOG.md`, `renovate.json`, `codeql.yml`, `scorecard.yml`,
+Plan and rationale: [`docs/publishing.md`](docs/publishing.md). In-repo artifacts (`release.yml`,
+[`CHANGELOG.md`](CHANGELOG.md), `renovate.json`, `codeql.yml`, `scorecard.yml`,
 `python-eol.yml`, workflow `permissions`) are all in place; the CI/CD pipeline
 section is the reference. What is left is account-side, roughly in order.
 
@@ -424,7 +424,7 @@ Post-repo, at the release that earns it:
   real how-to-exclude video before the first release.
 - [ ] Wire the CodSpeed `benchmarks` job once the repo is up (it is written,
   just commented).
-- [ ] Optional: write up the OneDrive warning in `docs/core-contract.md` if the
+- [ ] Optional: write up the OneDrive warning in [`docs/core-contract.md`](docs/core-contract.md) if the
   project keeps that discipline post-v1. Implemented directly for now.
 
 ## Roadmap (later)
@@ -435,6 +435,29 @@ job, a benchmark suite with a recorded baseline, the file-I/O hardening review
 and parser fuzzing. `platform.py` and the interactive questionary pickers in
 `init` and `import` are the accepted remaining coverage gap; their flag paths
 are fully covered.
+
+### Agent skill composition (Claude Code Skills and equivalents)
+
+Not scoped. Raised during the README rewrite as a marketing point worth
+having a real backing plan for, not yet an OpenSpec change.
+
+- [ ] Explore composing a project's agent-skill files the same way AGENTS.md
+  and CLAUDE.md are composed today: a personal library of reusable skills,
+  picked per project instead of an agent loading every skill unconditionally.
+  A skill (a `SKILL.md`-shaped file: frontmatter plus a body, occasionally a
+  script alongside it) is already close enough to a snippet in shape that the
+  existing managed-block-and-manifest machinery may extend to it directly
+  rather than needing a second mechanism.
+- [ ] The actual argument for doing this, not just the organizational one:
+  every skill an agent does not need loaded for a given project is context it
+  never has to spend, so a curated per-project skill selection is a
+  token-efficiency win. That is the pitch in the README and
+  [`docs/concepts.md`](docs/concepts.md); it has to survive contact with a real design before it
+  becomes more than a pitch.
+- [ ] Revisit once v1 (AGENTS.md/CLAUDE.md composition) is stable. A second
+  composed-file family is exactly the kind of expansion that has to prove it
+  reuses the existing core rather than forking it, the standing bar for
+  everything in this Roadmap section.
 
 ### TUI (terminal user interface)
 
@@ -449,13 +472,41 @@ core.
 - [ ] Reuse the plain-ASCII rule where it still applies. Box drawing and layout are the framework's business, but any label or status text mdcompose authors stays ASCII, for the same Windows console reasons.
 - [ ] Decide before building whether the TUI ships in the same package or as an optional extra, since Textual is heavier than the CLI needs and `pipx install mdcompose` should stay small.
 
+### Community snippet library (TUI-gated, the one planned network exception)
+
+Not scoped. Concept borrowed from the skill marketplaces appearing around
+Claude Code Skills, adapted to a snippet library: a public GitHub repository
+as the shared source, crawled and indexed through GitHub's API so it can be
+browsed and fuzzy-searched locally, with individual snippets pulled into your
+own library one at a time from inside the TUI.
+
+- [ ] This is the one place the "no network requests, ever" invariant (see
+  [`docs/core-contract.md`](docs/core-contract.md) section 16 and the AGENTS.md threat model) gets a
+  deliberate, narrow exception, in the same spirit as the OneDrive-detection
+  and README-ASCII reversals: raised on purpose, considered, decided. The CLI
+  itself gains no network dependency; only this TUI-only browse action does.
+- [ ] Never on by default and never reachable from the CLI. Fetching the index
+  is an explicit TUI action a user takes, not something a `doctor` or `init`
+  run triggers on its own.
+- [ ] Pulling a community snippet into your local library stays exactly as
+  explicit as `snippet adopt` already requires: nothing is added without being
+  picked by name, and the existing collision handling (local copy vs.
+  overwrite, nothing without a decision) applies unchanged.
+- [ ] Indexing needs its own trust story before this is built: a crawled
+  repository is untrusted input the same way any composed snippet is (see the
+  threat model in AGENTS.md), so indexing surfaces content for a human to
+  read before adopting, and adopting one snippet never means trusting the
+  whole source repository.
+- [ ] Revisit once the TUI itself exists, since this is an additional TUI-only
+  caller of the library machinery, not a reason to build the TUI sooner.
+
 ### Third-party integrations
 
 - [ ] Research and, where practical, build integrations that let a user manage their content and snippet library without leaving their usual environment. Candidates are a VS Code extension or a JetBrains plugin; the TUI is tracked separately above. Before building anything new, evaluate whether extending an existing tool in this space is a better use of effort than duplicating config-sync mechanics that are already solved, so the focus stays on the snippet library and composition workflow that is not well covered elsewhere.
 
 ### Additional language implementations
 
-- [ ] Once v1 behavior is stable and `docs/core-contract.md` is complete, port the CLI to one or more additional languages. Node.js/TypeScript, Go and Rust are the likely candidates. Broader than the zero-install binary below: this is about giving people who prefer not to touch Python a native option, not only about removing a runtime dependency. The contract exists so a port reimplements a specification rather than translating Python.
+- [ ] Once v1 behavior is stable and [`docs/core-contract.md`](docs/core-contract.md) is complete, port the CLI to one or more additional languages. Node.js/TypeScript, Go and Rust are the likely candidates. Broader than the zero-install binary below: this is about giving people who prefer not to touch Python a native option, not only about removing a runtime dependency. The contract exists so a port reimplements a specification rather than translating Python.
 
 ### Standalone binary distribution (zero install)
 

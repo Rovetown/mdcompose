@@ -1,6 +1,5 @@
-<!--
-What does this change, and why. Link the issue if there is one.
--->
+<!-- What does this change, and why.
+Link the issue if there is one. -->
 
 ## Checklist
 
@@ -9,4 +8,4 @@ What does this change, and why. Link the issue if there is one.
 - [ ] `uv run pre-commit run --all-files` is clean
 - [ ] Every commit is a Conventional Commit (`uv run cz check --rev-range origin/main..HEAD`)
 - [ ] Plain ASCII in everything the change adds
-- [ ] Behavior change: `docs/core-contract.md` updated in the same commit
+- [ ] Behavior change: [docs/core-contract.md](../docs/core-contract.md) updated in the same commit
