@@ -31,7 +31,7 @@ mdcompose keeps those as small snippets in one place and builds each project's `
 - **No install required.** `uvx mdcompose doctor` or `pipx run mdcompose doctor` run the real thing in a throwaway environment -- try it, or use it in a one-off script, without adding anything to your machine.
 - **Skills cost tokens too, and that's next (planned).** Every skill an agent does not need loaded for a project is context spent before it has done any work.
   A skill file -- frontmatter, a body, sometimes a script -- is already snippet-shaped, so curating which skills a project loads, the same way AGENTS.md and CLAUDE.md are curated today, is the natural next composition target: real token savings, not just tidiness.
-  See [docs/concepts.md](docs/concepts.md).
+  See [docs/concepts.md](https://github.com/Rovetown/mdcompose/blob/main/docs/concepts.md).
 
 It makes no network requests and collects no telemetry.
 
@@ -51,9 +51,9 @@ uvx mdcompose doctor
 
 ## Documentation
 
-[docs/concepts.md](docs/concepts.md) covers the reference detail this README leaves out: the snippet frontmatter schema, how drift detection hashes and normalizes content, every path and exit code, the ASCII and no-network rationale, and what is planned but not built.
-[docs/core-contract.md](docs/core-contract.md) specifies every behavior independently of the Python implementation, so a port to another language reimplements a spec rather than translating code.
-[CONTRIBUTING.md](CONTRIBUTING.md) covers the conventions CI enforces and how a change is planned.
+[docs/concepts.md](https://github.com/Rovetown/mdcompose/blob/main/docs/concepts.md) covers the reference detail this README leaves out: the snippet frontmatter schema, how drift detection hashes and normalizes content, every path and exit code, the ASCII and no-network rationale, and what is planned but not built.
+[docs/core-contract.md](https://github.com/Rovetown/mdcompose/blob/main/docs/core-contract.md) specifies every behavior independently of the Python implementation, so a port to another language reimplements a spec rather than translating code.
+[CONTRIBUTING.md](https://github.com/Rovetown/mdcompose/blob/main/CONTRIBUTING.md) covers the conventions CI enforces and how a change is planned.
 
 ## Quickstart
 
@@ -192,7 +192,7 @@ It deliberately does no format translation: a target receives Markdown, not Curs
 
 **None of them go past agent instructions -- mdcompose plans to.** A skill file is markdown plus optional scripts, same as a snippet; composing a curated skill selection per project the way AGENTS.md and CLAUDE.md are composed today means an agent stops paying context for skills a given project never needed loaded in the first place.
 
-See [docs/concepts.md](docs/concepts.md) for the fuller case for each point.
+See [docs/concepts.md](https://github.com/Rovetown/mdcompose/blob/main/docs/concepts.md) for the fuller case for each point.
 
 ## Contributing
 
@@ -203,9 +203,9 @@ uv run ruff check .
 uv run mdcompose doctor
 ```
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for the full workflow and [docs/core-contract.md](docs/core-contract.md) for the behavior specification.
+See [CONTRIBUTING.md](https://github.com/Rovetown/mdcompose/blob/main/CONTRIBUTING.md) for the full workflow and [docs/core-contract.md](https://github.com/Rovetown/mdcompose/blob/main/docs/core-contract.md) for the behavior specification.
 
 ## License
 
 MIT.
-See [LICENSE](LICENSE).
+See [LICENSE](https://github.com/Rovetown/mdcompose/blob/main/LICENSE).
