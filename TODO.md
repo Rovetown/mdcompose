@@ -63,13 +63,17 @@ wheel was never affected, it already only packages `mdcompose`). Badges use
 
 Still to finish:
 
-- **Record the demo GIF.** Not yet done. Plan: script an asciinema recording of
-  the real flow (create a snippet file, `mdcompose init` with the picker,
-  `mdcompose doctor` showing a clean then drifted state), convert with
+- **Record the demo GIF.** Deliberately deferred, not blocking `0.1.0`: no
+  time to set up the recording right now. The README's Quickstart spot now
+  holds an italic text placeholder instead of a broken `<img>` tag, with a
+  comment naming exactly what to restore once the GIF exists. Plan for when
+  time allows: script an asciinema recording of the real flow (create a
+  snippet file, `mdcompose init` with the picker, `mdcompose doctor` showing a
+  clean then drifted state), convert with
   `agg demo.cast docs/assets/mdcompose-demo.gif`. Keep it short, roughly 15 to
-  25 seconds, one clear take. Shot list to write next session: exact commands,
-  where to pause, terminal size and theme so it is re-recordable when output
-  changes. `docs/assets/` now exists (holds the logo).
+  25 seconds, one clear take. Shot list to write first: exact commands, where
+  to pause, terminal size and theme so it is re-recordable when output
+  changes. `docs/assets/` already exists (holds the logo).
 - **Verify the badges resolve** once `0.1.0` is on PyPI (the PyPI, pyversions,
   and scorecard badges 404 or show "unknown" until then).
 
@@ -488,6 +492,17 @@ own library one at a time from inside the TUI.
 - [ ] Never on by default and never reachable from the CLI. Fetching the index
   is an explicit TUI action a user takes, not something a `doctor` or `init`
   run triggers on its own.
+- [ ] Security specifics for the fetch itself, not just the content it
+  returns: the source is one fixed, hardcoded GitHub API host and a repository
+  named explicitly (owner/name), never an arbitrary user-supplied URL, so this
+  cannot become a general-purpose fetcher or an SSRF vector. Indexing resolves
+  and pins a specific commit SHA rather than tracking a floating branch head,
+  so what a user browses is stable and the exact source is namable in a bug
+  report. Every file the crawl reads is subject to the same size limit as any
+  other file mdcompose reads (section 5.1), so a maliciously huge file in the
+  source repo is refused, not loaded into memory. And crawled content is
+  markdown only: nothing pulled from the index is ever executed, only
+  composed, the same as a locally authored snippet.
 - [ ] Pulling a community snippet into your local library stays exactly as
   explicit as `snippet adopt` already requires: nothing is added without being
   picked by name, and the existing collision handling (local copy vs.

@@ -51,3 +51,8 @@ runtime-env/
 report.json
 runtime.txt
 all.txt
+
+# Local scratch for the not-yet-built TUI (logo drafts, icons, ANSI art):
+# not referenced by anything shipped, kept out of the repo until the TUI
+# branch actually needs it.
+testing-folder/

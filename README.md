@@ -59,7 +59,13 @@ uvx mdcompose doctor
 
 The whole flow, start to finish:
 
-<!-- demo GIF: docs/assets/mdcompose-demo.gif -- not yet recorded, see TODO.md --> <div align="center"> <img src="https://raw.githubusercontent.com/Rovetown/mdcompose/main/docs/assets/mdcompose-demo.gif" alt="mdcompose init composing a project's AGENTS.md and CLAUDE.md from selected snippets" width="720"> </div>
+<!-- demo GIF: docs/assets/mdcompose-demo.gif -- not yet recorded, see TODO.md. Restore the <img> below once it exists. -->
+
+<div align="center">
+
+*(a short demo recording of `init` and `doctor` goes here -- not yet recorded)*
+
+</div>
 
 A snippet is one Markdown file: optional YAML frontmatter, then the body.
 The filename without `.md` is the snippet id.
