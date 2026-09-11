@@ -75,6 +75,12 @@ benchmark = [
   "pytest-codspeed>=3.0",
 ]
 
+[tool.hatch.build]
+# Hatchling's default sdist include is every git-tracked file, so without this
+# the logo and the (planned) demo GIF would ride along into the source
+# distribution on every release. Neither is needed to run or build mdcompose.
+exclude = ["docs/assets/**"]
+
 [tool.hatch.build.targets.wheel]
 packages = ["mdcompose"]
 

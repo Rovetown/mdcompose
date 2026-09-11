@@ -1,14 +1,15 @@
 <div align="center">
 
-# mdcompose
+<img src="https://raw.githubusercontent.com/Rovetown/mdcompose/main/docs/assets/mdcompose-logo.svg" alt="mdcompose" height="72">
 
 **Compose a project's `CLAUDE.md` and `AGENTS.md` from a personal library of reusable Markdown snippets.**
 
-[![PyPI](https://img.shields.io/pypi/v/mdcompose?style=flat-square)](https://pypi.org/project/mdcompose/)
-[![Python](https://img.shields.io/pypi/pyversions/mdcompose?style=flat-square)](https://pypi.org/project/mdcompose/)
-[![CI](https://img.shields.io/github/actions/workflow/status/Rovetown/mdcompose/ci.yml?branch=main&style=flat-square&label=CI)](https://github.com/Rovetown/mdcompose/actions/workflows/ci.yml)
-[![OpenSSF Scorecard](https://img.shields.io/ossf-scorecard/github.com/Rovetown/mdcompose?style=flat-square&label=scorecard)](https://scorecard.dev/viewer/?uri=github.com/Rovetown/mdcompose)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](https://github.com/Rovetown/mdcompose/blob/main/LICENSE)
+[![PyPI](https://img.shields.io/pypi/v/mdcompose?style=for-the-badge)](https://pypi.org/project/mdcompose/)
+[![Python](https://img.shields.io/pypi/pyversions/mdcompose?style=for-the-badge)](https://pypi.org/project/mdcompose/)
+[![CI](https://img.shields.io/github/actions/workflow/status/Rovetown/mdcompose/ci.yml?branch=main&style=for-the-badge&label=CI)](https://github.com/Rovetown/mdcompose/actions/workflows/ci.yml)
+[![pre-commit.ci status](https://results.pre-commit.ci/badge/github/Rovetown/mdcompose/main.svg)](https://results.pre-commit.ci/latest/github/Rovetown/mdcompose/main)
+[![OpenSSF Scorecard](https://img.shields.io/ossf-scorecard/github.com/Rovetown/mdcompose?style=for-the-badge&label=scorecard)](https://scorecard.dev/viewer/?uri=github.com/Rovetown/mdcompose)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue?style=for-the-badge)](https://github.com/Rovetown/mdcompose/blob/main/LICENSE)
 
 </div>
 

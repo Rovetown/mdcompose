@@ -44,16 +44,22 @@ one belongs to. The Scorecard reasoning is in `docs/scorecard.md`.
 
 The README should be good before `0.1.0` reaches PyPI, since `readme =
 "README.md"` becomes the PyPI long description. Structure is agreed: lean
-front-door, ~130 to 200 lines, flat-square shields badges, near-zero emoji,
-ASCII diagrams and trees (no mermaid, because PyPI does not render it), HTML
-only for layout. Prose is neutral-dev, accessible to a non-expert without
+front-door, ~130 to 200 lines, `for-the-badge` style shields badges, near-zero
+emoji, ASCII diagrams and trees (no mermaid, because PyPI does not render it),
+HTML only for layout. Prose is neutral-dev, accessible to a non-expert without
 dropping the technical terms.
 
 Done: `README.md` written (from the v3 draft, demo GIF placed in Quickstart
 rather than Highlights, since the GIF shows the flow the Quickstart walks
 through), both drafts deleted, `scripts/check_ascii.py` exempts `README.md`
-via a `SKIP_FILES` set, and the Decisions log below records the exemption.
-Not yet committed.
+via a `SKIP_FILES` set (Decisions log below records it), reference-level detail
+moved out to `docs/concepts.md`, and a logo added: `docs/assets/mdcompose-logo.svg`
+in the centered header (replacing the `# mdcompose` text heading), referenced
+by the same absolute `raw.githubusercontent.com/.../main/...` URL as the demo
+GIF so it also renders on PyPI, and `docs/assets/**` excluded from the sdist in
+`pyproject.toml` (`[tool.hatch.build]`, verified with a real `uv build`; the
+wheel was never affected, it already only packages `mdcompose`). Badges use
+`style=for-the-badge`, not `flat-square`. Not yet committed.
 
 Still to finish:
 
@@ -63,21 +69,7 @@ Still to finish:
   `agg demo.cast docs/assets/mdcompose-demo.gif`. Keep it short, roughly 15 to
   25 seconds, one clear take. Shot list to write next session: exact commands,
   where to pause, terminal size and theme so it is re-recordable when output
-  changes. Store at `docs/assets/mdcompose-demo.gif`; both READMEs already
-  reference it by the absolute `raw.githubusercontent.com/.../main/...` URL so
-  it also renders on PyPI. `docs/assets/` does not exist yet.
-- **Logo / visual identity.** None exists. Decide whether `0.1.0` needs one. If
-  yes, a simple wordmark is enough; add it as a `<picture>` with light and dark
-  variants in the centered header block, above or replacing the tagline. If no,
-  ship text-only for now; the header already reads fine without it.
-- Done. `docs/concepts.md` now carries the reference-level detail (snippet
-  frontmatter schema, hash normalization, `MDCOMPOSE_CONFIG_DIR`, the
-  exit-code table, the ASCII and no-network rationale, target registration and
-  projection), an expanded "Why mdcompose, specifically" section (the
-  distinctive points from the Standing decision below, argued rather than just
-  listed), and a Planned section covering the Roadmap items (TUI, editor
-  integrations, other-language ports, a zero-install binary). Linked from the
-  README's Documentation and How it compares sections. Not yet committed.
+  changes. `docs/assets/` now exists (holds the logo).
 - **Verify the badges resolve** once `0.1.0` is on PyPI (the PyPI, pyversions,
   and scorecard badges 404 or show "unknown" until then).
 
