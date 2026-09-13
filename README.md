@@ -59,11 +59,9 @@ uvx mdcompose doctor
 
 The whole flow, start to finish:
 
-<!-- demo GIF: docs/assets/mdcompose-demo.gif -- not yet recorded, see TODO.md. Restore the <img> below once it exists. -->
-
 <div align="center">
 
-*(a short demo recording of `init` and `doctor` goes here -- not yet recorded)*
+<img src="https://raw.githubusercontent.com/Rovetown/mdcompose/main/docs/assets/mdcompose-demo.gif" alt="mdcompose demo: init's interactive picker composing AGENTS.md and CLAUDE.md from selected snippets, then doctor confirming both are clean" width="700">
 
 </div>
 

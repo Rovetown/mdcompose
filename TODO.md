@@ -67,17 +67,37 @@ wheel was never affected, it already only packages `mdcompose`). Badges use
 
 Still to finish:
 
-- **Record the demo GIF.** Deliberately deferred, not blocking `0.1.0`: no
-  time to set up the recording right now. The README's Quickstart spot now
-  holds an italic text placeholder instead of a broken `<img>` tag, with a
-  comment naming exactly what to restore once the GIF exists. Plan for when
-  time allows: script an asciinema recording of the real flow (create a
-  snippet file, `mdcompose init` with the picker, `mdcompose doctor` showing a
-  clean then drifted state), convert with
-  `agg demo.cast docs/assets/mdcompose-demo.gif`. Keep it short, roughly 15 to
-  25 seconds, one clear take. Shot list to write first: exact commands, where
-  to pause, terminal size and theme so it is re-recordable when output
-  changes. `docs/assets/` already exists (holds the logo).
+- **Record the demo GIF. Done.** `docs/assets/mdcompose-demo.gif` (18s, 46
+  frames, ~95 KB), README Quickstart wired to it. Recorded in WSL against the
+  real published PyPI package (0.1.3), not the dev checkout, in an isolated
+  scratch venv (`~/mdcompose-demo`, `MDCOMPOSE_CONFIG_DIR` scratch) so nothing
+  touched the repo's own `.venv` or real config. Tools: `bat` for file display,
+  `asciinema rec --cols 100 --rows 34` for capture, `agg` for the GIF
+  (installed with `cargo install --locked --git https://github.com/asciinema/agg`;
+  the `agg` crate on crates.io is an unrelated library and has no binary).
+  Shot: `mdcompose init` against a small seeded snippet library (5 snippets
+  across 3 categories), driving the real `questionary` checkbox picker live
+  (arrow/space/enter), then `bat` on the composed `AGENTS.md`/`CLAUDE.md` and
+  a closing `mdcompose doctor`.
+
+  Non-obvious part: driving the picker interactively needs a real pty
+  (`pexpect.spawn`), but a bare pty never answers `prompt_toolkit`'s
+  cursor-position (CPR) query, so the picker silently falls back to a
+  degraded, non-live-redrawing render -- every keystroke lands but nothing
+  visibly updates until the final "done (N selections)" line. Fix: a
+  background thread reads the child's pty directly (`os.read` on
+  `child.child_fd`, not `child.expect`, since only one reader can drain the
+  fd), mirrors every byte to stdout for asciinema to capture, and answers any
+  `\x1b[6n` it sees with a plausible `\x1b[<row>;1R` immediately. That alone
+  is what turns the recording from a slideshow into a real live checkbox
+  animation. Command typing is simulated the same way for the non-interactive
+  steps: print the prompt and each character with a short `sleep` between
+  them rather than pasting the whole line, since agg only ever renders a new
+  GIF frame on a real screen change, and a pasted line is one change instead
+  of many.
+
+  Driver script and seed snippets were scratch-only (`temp/`, gitignored via
+  `.git/info/exclude`'s `AGENTS.md`/`CLAUDE.md` patterns), not committed.
 - **Verify the badges resolve** once `0.1.0` is on PyPI (the PyPI, pyversions,
   and scorecard badges 404 or show "unknown" until then).
 
