@@ -105,11 +105,11 @@ not retroactively fix the metadata already published for `0.1.0`.
 
 ### After the first release
 
-6. **Post-release hardening.** Partly done: `Development Status` moved to
+6. **Post-release hardening. Done.** `Development Status` moved to
    `4 - Beta` (the v1 feature set is complete and tested -- all 8 OpenSpec
    changes shipped, 93%+ coverage, mutation-tested, hardening review done --
    but pre-1.0 semver still allows a breaking change, so Beta fits better than
-   a Stable claim; also takes effect on the next release only). Done:
+   a Stable claim; also takes effect on the next release only), and
    `platform.ONEDRIVE_HELP_URL` points at the real how-to-exclude video
    (`https://www.youtube.com/watch?v=KRWvnMVXYGo`).
 7. **OpenSSF Best Practices passing badge. Done: 100% Passing.** Registered as
@@ -367,12 +367,6 @@ Codecov / CodSpeed / any metered service (cost); git-cliff / towncrier
 `version` directly); trufflehog as a hook or job (it is a one-time local
 pre-publish run only).
 
-## Open work
-
-Things that are not behavior, so they carry no core-contract change.
-
-- [x] Add an optional funding link via `.github/FUNDING.yml` and a line in the README footer. Done: `ko_fi: rovetown` in `.github/FUNDING.yml`, and a Ko-fi badge in the README badge row instead of a footer line.
-
 ## Standing decision: competitive landscape
 
 Three tools cover the core idea of a personal library of reusable snippets
@@ -443,21 +437,23 @@ live remaining work is in the `Next` section at the top of this file.
 
 Post-repo, at the release that earns it:
 
-- [x] Move the `Development Status` classifier off `3 - Alpha`. Done: moved to
-  `4 - Beta` (see the `Next` section above for the reasoning).
 - [ ] Add a new Python to the CI matrix by hand when its first release
   candidate lands (annual, not worth a regex manager). 3.15 is at rc2
   (2026-09-13) with final due October 2026: deferred rather than added now,
   since `uv sync --python 3.15` in the matrix needs a prerelease-specific
   version string until the final ships, for a few weeks of coverage that the
   final release gets for free.
-- [x] Point `platform.ONEDRIVE_HELP_URL` at a real how-to-exclude video before
-  the first release. Done: `https://www.youtube.com/watch?v=KRWvnMVXYGo`.
 - [ ] `benchmarks` job in `ci.yml` is wired (uncommented, action pinned to
-  `07725aac5ac9e687bba40b9bed8e2bd389a641c8` / v5.2.1). What is left is
-  account-side: connect the repo at codspeed.io so the first run has somewhere
-  to upload results. Public repo, so no `CODSPEED_TOKEN` needed; the job uses
-  OIDC (`id-token: write`, scoped to that job only).
+  `07725aac5ac9e687bba40b9bed8e2bd389a641c8` / v5.2.1) but **failing as
+  expected**: first run on 2026-09-13 (run 34751402057) benchmarked fine
+  (8 passed) then failed on upload with `401 Unauthorized: Repository not
+  found or the user does not have access to it.` Confirms the account-side
+  gap below is real and blocking, not just a formality. What is left:
+  connect the repo at codspeed.io so the run has somewhere to upload results.
+  Public repo, so no `CODSPEED_TOKEN` needed; the job uses OIDC
+  (`id-token: write`, scoped to that job only). Not in `all-green`'s needs, so
+  this failure does not block merges, but it will keep failing on every push
+  until connected.
 - [ ] Optional: write up the OneDrive warning in [`docs/core-contract.md`](docs/core-contract.md) if the
   project keeps that discipline post-v1. Implemented directly for now.
 
