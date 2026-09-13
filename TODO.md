@@ -112,16 +112,16 @@ not retroactively fix the metadata already published for `0.1.0`.
    a Stable claim; also takes effect on the next release only). Done:
    `platform.ONEDRIVE_HELP_URL` points at the real how-to-exclude video
    (`https://www.youtube.com/watch?v=KRWvnMVXYGo`).
-7. **OpenSSF Best Practices passing badge.** Register the repo at
-   bestpractices.dev, complete the passing questionnaire (most criteria are
-   already met by the existing CI, tests, license, and static analysis), embed
-   the badge in the README. Scorecard's CII-Best-Practices check reads it
-   through the API: 0 to 5. Silver and gold are not attainable for a
-   solo-maintained project, so passing is the target. See [`docs/scorecard.md`](docs/scorecard.md).
-   No dedicated project website needed: the "project homepage URL" field
-   accepts any `https:` URL, and the GitHub repo URL
-   (`https://github.com/Rovetown/mdcompose`) is the standard choice for a
-   project with no separate site.
+7. **OpenSSF Best Practices passing badge. Done: 100% Passing.** Registered as
+   project 14614 (`https://www.bestpractices.dev/projects/14614`), homepage set
+   to the GitHub repo URL, every Passing-tier field across all six categories
+   (Basics, Change Control, Reporting, Quality, Security, Analysis) answered
+   and saved. Badge embedded in the README via shields.io's `cii/summary`
+   endpoint (the only way to get `for-the-badge` styling; bestpractices.dev's
+   own badge image does not support it). Scorecard's CII-Best-Practices check
+   reads this through the API: 0 to 5, and updates on its own schedule, not
+   immediately. Silver and gold are not attainable for a solo-maintained
+   project, so passing was the target and it is met. See [`docs/scorecard.md`](docs/scorecard.md).
 8. **Scorecard code-scanning alerts: left open, not dismissed.** Code-Review,
    Branch-Protection, and Fuzzing are solo-maintainer structural (see
    [`docs/scorecard.md`](docs/scorecard.md), Accepted limitations), but "won't
