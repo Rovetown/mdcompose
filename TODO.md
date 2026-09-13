@@ -443,17 +443,10 @@ Post-repo, at the release that earns it:
   since `uv sync --python 3.15` in the matrix needs a prerelease-specific
   version string until the final ships, for a few weeks of coverage that the
   final release gets for free.
-- [ ] `benchmarks` job in `ci.yml` is wired (uncommented, action pinned to
-  `07725aac5ac9e687bba40b9bed8e2bd389a641c8` / v5.2.1) but **failing as
-  expected**: first run on 2026-09-13 (run 34751402057) benchmarked fine
-  (8 passed) then failed on upload with `401 Unauthorized: Repository not
-  found or the user does not have access to it.` Confirms the account-side
-  gap below is real and blocking, not just a formality. What is left:
-  connect the repo at codspeed.io so the run has somewhere to upload results.
-  Public repo, so no `CODSPEED_TOKEN` needed; the job uses OIDC
-  (`id-token: write`, scoped to that job only). Not in `all-green`'s needs, so
-  this failure does not block merges, but it will keep failing on every push
-  until connected.
+- [x] `benchmarks` job in `ci.yml`. Done: connected at codspeed.io. Run
+  34781861376 (commit `4b43aa5`, 2026-09-13) uploaded successfully ("Linked
+  repository: Rovetown/mdcompose"), after an earlier run (34751402057) failed
+  upload with `401 Unauthorized` before the account-side connection existed.
 - [ ] Optional: write up the OneDrive warning in [`docs/core-contract.md`](docs/core-contract.md) if the
   project keeps that discipline post-v1. Implemented directly for now.
 
