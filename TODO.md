@@ -109,19 +109,28 @@ not retroactively fix the metadata already published for `0.1.0`.
    `4 - Beta` (the v1 feature set is complete and tested -- all 8 OpenSpec
    changes shipped, 93%+ coverage, mutation-tested, hardening review done --
    but pre-1.0 semver still allows a breaking change, so Beta fits better than
-   a Stable claim; also takes effect on the next release only). Still open:
-   point `platform.ONEDRIVE_HELP_URL` at a real page.
+   a Stable claim; also takes effect on the next release only). Done:
+   `platform.ONEDRIVE_HELP_URL` points at the real how-to-exclude video
+   (`https://www.youtube.com/watch?v=KRWvnMVXYGo`).
 7. **OpenSSF Best Practices passing badge.** Register the repo at
    bestpractices.dev, complete the passing questionnaire (most criteria are
    already met by the existing CI, tests, license, and static analysis), embed
    the badge in the README. Scorecard's CII-Best-Practices check reads it
    through the API: 0 to 5. Silver and gold are not attainable for a
    solo-maintained project, so passing is the target. See [`docs/scorecard.md`](docs/scorecard.md).
-8. **Dismiss the permanent Scorecard code-scanning alerts.** Code-Review,
-   Branch-Protection, and Fuzzing are solo-maintainer structural or a
-   deliberate non-goal (see [`docs/scorecard.md`](docs/scorecard.md), Accepted limitations). Dismiss
-   them as "won't fix" in the Security tab so the alert count stays meaningful;
-   leave Maintained and CII-Best-Practices to self-resolve.
+   No dedicated project website needed: the "project homepage URL" field
+   accepts any `https:` URL, and the GitHub repo URL
+   (`https://github.com/Rovetown/mdcompose`) is the standard choice for a
+   project with no separate site.
+8. **Scorecard code-scanning alerts: left open, not dismissed.** Code-Review,
+   Branch-Protection, and Fuzzing are solo-maintainer structural (see
+   [`docs/scorecard.md`](docs/scorecard.md), Accepted limitations), but "won't
+   fix" is a permanent label and the constraint is not permanent: it holds only
+   while there is one maintainer. Revisit once a second maintainer or a
+   collaborator with review rights joins, at which point Code-Review and
+   Branch-Protection stop being structural and Fuzzing can be reconsidered on
+   its own merits. Until then the alerts stay open in the Security tab rather
+   than dismissed. Maintained and CII-Best-Practices self-resolve separately.
 
 ### Not planned
 
@@ -257,7 +266,8 @@ One thing to confirm before wiring: `gitleaks/gitleaks-action` needs a free
 
 In the repo now: `ci.yml` (test matrix 3 OS x Python 3.11-3.14, `lint` (ruff +
 `mypy` + `deptry`), `coverage`, `ascii`, `build`, plus `hooks`, `commits`,
-`gitleaks`, `all-green`), `supply-chain.yml` (`licenses`, `audit`, `osv`,
+`gitleaks`, `benchmarks` (CodSpeed, not in `all-green`'s needs), `all-green`),
+`supply-chain.yml` (`licenses`, `audit`, `osv`,
 `sbom`), `dependency-review.yml` (PR-only, `deny-licenses` = the copyleft
 families), `release.yml` (`v*` tag), `bump.yml` (the dispatched release button),
 `mutation.yml` (weekly `mutmut`), `codeql.yml`, `scorecard.yml`,
@@ -303,10 +313,11 @@ tag through.
 
 ### Dormant - shipped commented, with an `# ENABLE WHEN:` marker
 
-- `codspeed` job in `ci.yml` - ENABLE WHEN the repo exists and a CodSpeed
-  project is connected. The benchmark suite is written; only the hosted runner
-  is missing.
 - all-contributors config - ENABLE WHEN the first outside contributor lands.
+
+The `benchmarks` job in `ci.yml` was in this list; it is now uncommented and
+pinned. It runs on every push and PR but is not in `all-green`'s needs list, so
+it cannot block a merge even before codspeed.io is connected. See item 6 above.
 
 (`mutation.yml` is not dormant - it ships active on a weekly cron, non-blocking.)
 
@@ -360,7 +371,7 @@ pre-publish run only).
 
 Things that are not behavior, so they carry no core-contract change.
 
-- [ ] Add an optional funding link via `.github/FUNDING.yml` and a line in the README footer. Deferred at the maintainer's request.
+- [x] Add an optional funding link via `.github/FUNDING.yml` and a line in the README footer. Done: `ko_fi: rovetown` in `.github/FUNDING.yml`, and a Ko-fi badge in the README badge row instead of a footer line.
 
 ## Standing decision: competitive landscape
 
@@ -435,11 +446,18 @@ Post-repo, at the release that earns it:
 - [x] Move the `Development Status` classifier off `3 - Alpha`. Done: moved to
   `4 - Beta` (see the `Next` section above for the reasoning).
 - [ ] Add a new Python to the CI matrix by hand when its first release
-  candidate lands (annual, not worth a regex manager).
-- [ ] Point `platform.ONEDRIVE_HELP_URL` (`https://mdcompose.dev/onedrive`) at a
-  real how-to-exclude video before the first release.
-- [ ] Wire the CodSpeed `benchmarks` job once the repo is up (it is written,
-  just commented).
+  candidate lands (annual, not worth a regex manager). 3.15 is at rc2
+  (2026-09-13) with final due October 2026: deferred rather than added now,
+  since `uv sync --python 3.15` in the matrix needs a prerelease-specific
+  version string until the final ships, for a few weeks of coverage that the
+  final release gets for free.
+- [x] Point `platform.ONEDRIVE_HELP_URL` at a real how-to-exclude video before
+  the first release. Done: `https://www.youtube.com/watch?v=KRWvnMVXYGo`.
+- [ ] `benchmarks` job in `ci.yml` is wired (uncommented, action pinned to
+  `07725aac5ac9e687bba40b9bed8e2bd389a641c8` / v5.2.1). What is left is
+  account-side: connect the repo at codspeed.io so the first run has somewhere
+  to upload results. Public repo, so no `CODSPEED_TOKEN` needed; the job uses
+  OIDC (`id-token: write`, scoped to that job only).
 - [ ] Optional: write up the OneDrive warning in [`docs/core-contract.md`](docs/core-contract.md) if the
   project keeps that discipline post-v1. Implemented directly for now.
 

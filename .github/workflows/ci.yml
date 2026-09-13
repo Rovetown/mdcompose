@@ -292,27 +292,28 @@ jobs:
             esac
           done
 
-  # DORMANT, repo-gated. The suite (tests/benchmarks) and the `benchmark`
-  # dependency group both exist; what is missing is a CodSpeed project, which
-  # needs the GitHub repo. CodSpeed runs the benchmarks instrumented rather than
-  # wall-clock, so the numbers are stable across runners, and it posts the delta
-  # as a pull request check rather than failing hard. Free for open source. To
-  # enable: connect the repo at codspeed.io, uncomment this job, and leave it
-  # out of the all-green needs list (benchmarks never block a merge).
-  #
-  # benchmarks:
-  #   name: benchmarks
-  #   runs-on: ubuntu-latest
-  #   timeout-minutes: 20
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #       with:
-  #         persist-credentials: false
-  #     - uses: astral-sh/setup-uv@v5
-  #       with:
-  #         enable-cache: true
-  #         cache-dependency-glob: uv.lock
-  #     - run: uv sync --locked --group benchmark
-  #     - uses: CodSpeedHQ/action@v3
-  #       with:
-  #         run: uv run --no-sync pytest tests/benchmarks --codspeed
+  # CodSpeed runs the benchmarks instrumented rather than wall-clock, so the
+  # numbers are stable across runners, and it posts the delta as a pull request
+  # check rather than failing hard. Free for open source. Not in the all-green
+  # needs list: benchmarks never block a merge. Needs the repo connected at
+  # codspeed.io once before its first run.
+  benchmarks:
+    name: benchmarks
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write # OpenID Connect authentication with CodSpeed
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - run: uv sync --locked --group benchmark
+      - uses: CodSpeedHQ/action@07725aac5ac9e687bba40b9bed8e2bd389a641c8 # v5.2.1
+        with:
+          run: uv run --no-sync pytest tests/benchmarks --codspeed
+          mode: "simulation"

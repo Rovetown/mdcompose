@@ -299,15 +299,14 @@ def onedrive_root_for(path: Path, info: PlatformInfo) -> str | None:
     return _onedrive_root_by_name(resolved)
 
 
-ONEDRIVE_HELP_URL = "https://mdcompose.dev/onedrive"
+ONEDRIVE_HELP_URL = "https://www.youtube.com/watch?v=KRWvnMVXYGo"
 
 
 def onedrive_warning(label: str, path: Path, root: str) -> str:
     """The one-line warning for a managed path inside a OneDrive-synced folder.
 
     Shared by ``doctor`` and ``init`` so the wording is identical. Names the
-    concrete failures and ends with a link the maintainer will point at a short
-    how-to-exclude video.
+    concrete failures and ends with a link to a short how-to-exclude video.
     """
     return (
         f"{label} at {path.as_posix()} is inside OneDrive ({root}). OneDrive can "
