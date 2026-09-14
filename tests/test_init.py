@@ -574,6 +574,135 @@ def test_a_clone_in_sync_needs_no_confirmation(invoke: Invoke, workspace: Path) 
     assert "not composed on this machine" not in result.out
 
 
+def skill_library_dir(workspace: Path) -> Path:
+    """The skill library sibling of the workspace fixture's snippet library."""
+    return workspace.parent / "config" / "skills"
+
+
+def write_skill(workspace: Path, name: str, text: str) -> None:
+    directory = skill_library_dir(workspace)
+    directory.mkdir(parents=True, exist_ok=True)
+    (directory / f"{name}.md").write_text(text, encoding="utf-8")
+
+
+SKILL_BLOCK = managed_block.SKILL_MANAGED_BLOCK
+
+
+def test_skills_option_composes_without_a_picker(invoke: Invoke, workspace: Path) -> None:
+    write_skill(workspace, "code-review", "---\ndescription: Review code\n---\n\nReview.\n")
+    result = invoke("init", "--mode", "import", "--snippets", ALL, "--skills", "code-review")
+    assert result.code == EXIT_OK
+    skill_file = workspace / ".claude" / "skills" / "code-review" / "SKILL.md"
+    assert skill_file.exists()
+    assert "name: code-review" in skill_file.read_text(encoding="utf-8")
+    assert block_of(skill_file, SKILL_BLOCK).strip() == "Review."
+
+
+def test_report_lists_composed_skills(invoke: Invoke, workspace: Path) -> None:
+    write_skill(workspace, "code-review", "Review.\n")
+    result = invoke("init", "--mode", "import", "--snippets", ALL, "--skills", "code-review")
+    assert "skills: code-review" in result.out
+    assert "code-review" in result.out
+
+
+def test_an_unknown_skill_id_is_refused(invoke: Invoke, workspace: Path) -> None:
+    write_skill(workspace, "code-review", "Review.\n")
+    result = invoke("init", "--mode", "import", "--snippets", ALL, "--skills", "no-such-skill")
+    assert result.code == EXIT_ATTENTION
+    assert "no-such-skill" in result.err
+
+
+def test_deselecting_a_skill_on_a_later_run_deletes_its_file(
+    invoke: Invoke, workspace: Path
+) -> None:
+    write_skill(workspace, "code-review", "Review.\n")
+    invoke("init", "--mode", "import", "--snippets", ALL, "--skills", "code-review")
+    skill_file = workspace / ".claude" / "skills" / "code-review" / "SKILL.md"
+    assert skill_file.exists()
+
+    result = invoke("init", "--mode", "import", "--snippets", ALL, "--skills", "")
+    assert result.code == EXIT_OK
+    assert not skill_file.exists()
+    assert "deleted" in result.out
+
+
+def test_an_empty_skill_library_never_opens_the_skill_picker(
+    invoke: Invoke, workspace: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An empty library must not even ask, per the independently-optional rule."""
+    import questionary
+
+    from mdcompose.commands import init_cmd
+
+    monkeypatch.setattr(init_cmd, "is_interactive", lambda: True)
+    prompts: list[str] = []
+
+    class FakeCheckbox:
+        def __init__(self, message: str, **_kwargs: object) -> None:
+            prompts.append(message)
+
+        def ask(self) -> list[str]:
+            return []
+
+    monkeypatch.setattr(questionary, "checkbox", FakeCheckbox)
+    result = invoke("init", "--mode", "import")
+    assert result.code == EXIT_OK
+    assert "Snippets to compose" in prompts
+    assert "Skills to compose" not in prompts
+
+
+def test_a_non_empty_skill_library_opens_the_skill_picker(
+    invoke: Invoke, workspace: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import questionary
+
+    from mdcompose.commands import init_cmd
+
+    write_skill(workspace, "code-review", "Review.\n")
+    monkeypatch.setattr(init_cmd, "is_interactive", lambda: True)
+    prompts: list[str] = []
+
+    class FakeCheckbox:
+        def __init__(self, message: str, **_kwargs: object) -> None:
+            prompts.append(message)
+
+        def ask(self) -> list[str]:
+            return []
+
+    monkeypatch.setattr(questionary, "checkbox", FakeCheckbox)
+    result = invoke("init", "--mode", "import")
+    assert result.code == EXIT_OK
+    assert "Skills to compose" in prompts
+
+
+def test_an_empty_skill_library_needs_no_flag_and_no_prompt(
+    invoke: Invoke, workspace: Path
+) -> None:
+    """The independently-optional invariant: no skill library, no extra question."""
+    result = invoke("init", "--mode", "import", "--snippets", ALL, "--yes")
+    assert result.code == EXIT_OK
+
+
+def test_a_clone_with_an_embedded_skill_requires_confirmation(
+    invoke: Invoke, workspace: Path, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    write_skill(workspace, "code-review", "Review.\n")
+    invoke("init", "--mode", "import", "--snippets", ALL, "--skills", "code-review")
+    clone = clone_of(workspace, workspace.parent / "clone")
+    monkeypatch.setattr(platform_module, "config_dir", lambda: tmp_path / "no-library")
+    monkeypatch.chdir(clone)
+
+    refused = invoke("init")
+    assert refused.code == EXIT_ATTENTION
+    assert not (clone / ".claude" / "skills" / "code-review" / "SKILL.md").exists()
+
+    confirmed = invoke("init", "--yes")
+    assert confirmed.code == EXIT_OK
+    skill_file = clone / ".claude" / "skills" / "code-review" / "SKILL.md"
+    assert skill_file.exists()
+    assert "Review." in skill_file.read_text(encoding="utf-8")
+
+
 def test_a_fully_scripted_run_never_prompts(invoke: Invoke, workspace: Path) -> None:
     result = invoke(
         "init", "--mode", "import", "--snippets", ALL, "--on-drift", "overwrite", "--yes"

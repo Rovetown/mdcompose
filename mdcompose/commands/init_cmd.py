@@ -17,11 +17,13 @@ from mdcompose.core import composition, files, init_ops, managed_block
 from mdcompose.core import config as config_module
 from mdcompose.core import manifest as manifest_module
 from mdcompose.core import platform as platform_module
+from mdcompose.core import skills as skills_module
 from mdcompose.core import snippets as snippets_module
 from mdcompose.core import targets as targets_module
 from mdcompose.core.config import Mode
 from mdcompose.core.exit_codes import EXIT_ATTENTION, AttentionError
 from mdcompose.core.output import OutputContext
+from mdcompose.core.skills import Skill
 from mdcompose.core.snippets import Snippet
 from mdcompose.prompts import confirm, is_interactive, output_for, prompt_choice
 from mdcompose.version import generated_by
@@ -37,6 +39,10 @@ ModeOption = Annotated[
 SnippetsOption = Annotated[
     str | None,
     typer.Option("--snippets", help="Comma-separated snippet ids. Skips the picker."),
+]
+SkillsOption = Annotated[
+    str | None,
+    typer.Option("--skills", help="Comma-separated skill ids. Skips the skill picker."),
 ]
 AcceptOption = Annotated[
     bool,
@@ -84,6 +90,7 @@ def init(
     directory: DirectoryArgument = None,
     mode: ModeOption = None,
     snippet_ids: SnippetsOption = None,
+    skill_ids: SkillsOption = None,
     accept: AcceptOption = False,
     on_drift: OnDriftOption = None,
     agents_from: AgentsFromOption = None,
@@ -104,6 +111,9 @@ def init(
     config_directory = platform_module.config_dir()
     configuration = config_module.load_config(config_module.config_path(config_directory))
     library = snippets_module.view(config_module.library_dir(configuration, config_directory))
+    skill_library = skills_module.view(
+        config_module.skill_library_dir(configuration, config_directory)
+    )
 
     if global_scope:
         _init_global(
@@ -144,6 +154,13 @@ def init(
         selector=_selector(output, accept) if interactive_ok else None,
         ask_mode=_mode_asker(output, accept) if interactive_ok else None,
         import_from=agents_from,
+        skill_library=skill_library,
+        requested_skill_ids=_parse_ids(skill_ids),
+        skill_selector=(
+            _skill_selector(output, accept)
+            if interactive_ok and not skill_library.is_empty
+            else None
+        ),
     )
     _refuse_malformed(prepared)
     _warn_empty_selection(output, prepared)
@@ -255,6 +272,51 @@ def _run_picker(
             )
 
     answer = questionary.checkbox("Snippets to compose", choices=choices).ask()
+    if answer is None:
+        raise AttentionError("no selection made")
+    return tuple(answer)
+
+
+def _skill_selector(output: OutputContext, accept: bool) -> init_ops.SkillSelector | None:
+    """Return an interactive skill picker, or None when there is nobody to ask."""
+    if accept or output.json_mode or not is_interactive():
+        return None
+
+    def pick(available: tuple[Skill, ...], preselected: tuple[str, ...]) -> tuple[str, ...]:
+        return _run_skill_picker(available, preselected)
+
+    return pick
+
+
+def _run_skill_picker(
+    available: tuple[Skill, ...],
+    preselected: tuple[str, ...],
+) -> tuple[str, ...]:
+    """Ask which skills to compose, grouped by category.
+
+    A separate checkbox section from the snippet picker, opened only by the
+    caller when the skill library is non-empty: the two libraries are
+    independently optional, and the caller decides whether asking is even
+    worth doing.
+    """
+    import questionary
+
+    grouped: dict[str, list[Skill]] = {}
+    for skill in available:
+        grouped.setdefault(skill.category or "uncategorized", []).append(skill)
+
+    choices: list[questionary.Choice] = []
+    for category in sorted(grouped):
+        choices.append(questionary.Separator(f"-- {category} --"))
+        for skill in grouped[category]:
+            label = skill.display_name
+            if skill.description is not None:
+                label = f"{label}: {skill.description}"
+            choices.append(
+                questionary.Choice(title=label, value=skill.id, checked=skill.id in preselected)
+            )
+
+    answer = questionary.checkbox("Skills to compose", choices=choices).ask()
     if answer is None:
         raise AttentionError("no selection made")
     return tuple(answer)
@@ -443,10 +505,15 @@ def _report(
     if prepared.detected_stack:
         output.info(f"detected: {', '.join(prepared.detected_stack)}")
     output.info(f"snippets: {', '.join(item.id for item in prepared.selection) or 'none'}")
+    if prepared.skill_selection or result.deleted:
+        output.info(
+            f"skills: {', '.join(item.id for item in prepared.skill_selection) or 'none'}"
+        )
     for label, keys in (
         ("wrote", result.written),
         ("unchanged", result.unchanged),
         ("kept your edits in", result.kept),
+        ("deleted", result.deleted),
     ):
         if keys:
             output.info(f"  {label}: {', '.join(keys)}")

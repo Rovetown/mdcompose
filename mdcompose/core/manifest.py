@@ -29,7 +29,7 @@ from mdcompose.core.config import Mode
 from mdcompose.core.exit_codes import AttentionError
 
 MANIFEST_FILENAME = "mdcompose.lock"
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 AGENTS_MD_KEY = "agents_md"
 CLAUDE_MD_KEY = "claude_md"
@@ -57,10 +57,11 @@ _MANIFEST_KEYS = frozenset(
         "generated_at",
         "detected_stack",
         "snippets",
+        "skills",
         "files",
     }
 )
-_FILE_ENTRY_KEYS = frozenset({"path", "mode", "managed_block_hash", "imports"})
+_FILE_ENTRY_KEYS = frozenset({"path", "mode", "managed_block_hash", "block_id", "imports"})
 
 
 @dataclass(frozen=True, slots=True)
@@ -79,12 +80,35 @@ class SnippetEntry:
 
 
 @dataclass(frozen=True, slots=True)
+class SkillEntry:
+    """One composed skill, with its content embedded.
+
+    Shaped like ``SnippetEntry`` but with no ``applies_to``: a skill is never
+    split between AGENTS.md and CLAUDE.md, so there is nothing for that field
+    to mean here.
+    """
+
+    id: str
+    position: int
+    content: str
+
+
+@dataclass(frozen=True, slots=True)
 class FileEntry:
-    """What the manifest records about one managed file."""
+    """What the manifest records about one managed file.
+
+    ``block_id`` names which managed block ``managed_block_hash`` refers to.
+    It is optional on read because a schema-1 manifest never wrote it: for
+    the two well-known keys (``agents_md``, ``claude_md``) it is recovered
+    from ``BLOCK_ID_BY_KEY`` when absent. Every manifest this version writes
+    sets it explicitly, which is what lets an open-ended set of skill-keyed
+    entries be recorded without a matching open-ended lookup table.
+    """
 
     path: str
     mode: Mode
     managed_block_hash: str
+    block_id: str | None = None
     imports: str | None = None
     extra: Mapping[str, object] = field(default_factory=dict)
 
@@ -98,6 +122,7 @@ class Manifest:
     generated_at: str | None
     detected_stack: tuple[str, ...]
     snippets: tuple[SnippetEntry, ...]
+    skills: tuple[SkillEntry, ...]
     files: Mapping[str, FileEntry]
     extra: Mapping[str, object]
     source: Path
@@ -109,6 +134,10 @@ class Manifest:
         library still knows what goes where.
         """
         return tuple(sorted(self.snippets, key=lambda entry: entry.position))
+
+    def skills_in_order(self) -> tuple[SkillEntry, ...]:
+        """Return the composed skills in recorded order."""
+        return tuple(sorted(self.skills, key=lambda entry: entry.position))
 
 
 def manifest_path(project_root: Path) -> Path:
@@ -152,6 +181,7 @@ def _parse(raw: object, path: Path) -> Manifest:
         generated_at=_as_str(raw, "generated_at", path),
         detected_stack=_as_str_list(raw, "detected_stack", path),
         snippets=_as_snippets(raw, path),
+        skills=_as_skills(raw, path),
         files=_as_files(raw, path),
         extra={key: value for key, value in raw.items() if key not in _MANIFEST_KEYS},
         source=path,
@@ -216,6 +246,35 @@ def _as_snippet(item: object, index: int, path: Path) -> SnippetEntry:
     )
 
 
+def _as_skills(raw: Mapping[str, object], path: Path) -> tuple[SkillEntry, ...]:
+    if "skills" not in raw or raw["skills"] is None:
+        return ()
+    value = raw["skills"]
+    if not isinstance(value, list):
+        raise AttentionError(f"{path}: 'skills' must be a list")
+    return tuple(_as_skill(item, index, path) for index, item in enumerate(value))
+
+
+def _as_skill(item: object, index: int, path: Path) -> SkillEntry:
+    if not isinstance(item, dict):
+        raise AttentionError(f"{path}: skill entry {index} must be a JSON object")
+    identifier = _as_str(item, "id", path, context=f"skill entry {index}: ")
+    if identifier is None:
+        raise AttentionError(f"{path}: skill entry {index} has no 'id'")
+    content = _as_str(item, "content", path, context=f"skill '{identifier}': ")
+    if content is None:
+        raise AttentionError(
+            f"{path}: skill '{identifier}' has no 'content'. Embedded content is what "
+            "lets this manifest be used by someone without the skill in their library."
+        )
+    position = _as_int(item, "position", path)
+    return SkillEntry(
+        id=identifier,
+        position=index if position is None else position,
+        content=content,
+    )
+
+
 def _as_files(raw: Mapping[str, object], path: Path) -> Mapping[str, FileEntry]:
     if "files" not in raw or raw["files"] is None:
         return {}
@@ -248,6 +307,7 @@ def _as_file_entry(key: str, item: object, path: Path) -> FileEntry:
         path=relative,
         mode=mode,  # type: ignore[arg-type]
         managed_block_hash=block_hash,
+        block_id=_as_str(item, "block_id", path, context=context),
         imports=_as_str(item, "imports", path, context=context),
         extra={name: content for name, content in item.items() if name not in _FILE_ENTRY_KEYS},
     )
@@ -309,7 +369,7 @@ def _drift_for(key: str, entry: FileEntry, project_root: Path) -> FileDrift:
     if result.problem is not None:
         return FileDrift(key=key, path=path, status=MALFORMED, detail=result.problem.message)
 
-    block_id = BLOCK_ID_BY_KEY.get(key)
+    block_id = entry.block_id if entry.block_id is not None else BLOCK_ID_BY_KEY.get(key)
     block = None if block_id is None else result.find(block_id)
     if block is None:
         return FileDrift(
@@ -332,6 +392,7 @@ def build(
     snippets: tuple[SnippetEntry, ...],
     files_recorded: Mapping[str, FileEntry],
     source: Path,
+    skills: tuple[SkillEntry, ...] = (),
 ) -> Manifest:
     """Assemble a manifest ready to be written."""
     return Manifest(
@@ -340,6 +401,7 @@ def build(
         generated_at=generated_at,
         detected_stack=detected_stack,
         snippets=snippets,
+        skills=skills,
         files=dict(files_recorded),
         extra={},
         source=source,
@@ -367,6 +429,14 @@ def to_document(manifest: Manifest) -> dict[str, object]:
             }
             for entry in manifest.snippets_in_order()
         ],
+        "skills": [
+            {
+                "id": entry.id,
+                "position": entry.position,
+                "content": entry.content,
+            }
+            for entry in manifest.skills_in_order()
+        ],
         "files": {
             key: _file_entry_document(entry) for key, entry in sorted(manifest.files.items())
         },
@@ -381,6 +451,8 @@ def _file_entry_document(entry: FileEntry) -> dict[str, object]:
         "mode": entry.mode,
         "managed_block_hash": entry.managed_block_hash,
     }
+    if entry.block_id is not None:
+        document["block_id"] = entry.block_id
     if entry.imports is not None:
         document["imports"] = entry.imports
     document.update(entry.extra)

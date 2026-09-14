@@ -33,6 +33,9 @@ from mdcompose.core.exit_codes import AttentionError
 # block belongs to which file, and that arrives first.
 AGENTS_COMPOSITION_BLOCK = "agents-composition"
 CLAUDE_MANAGED_BLOCK = "claude-managed"
+#: Shared by every composed skill file. One block per file, so no per-skill
+#: block id is needed: a skill file never holds more than one managed block.
+SKILL_MANAGED_BLOCK = "skill-managed"
 
 MARKER_PREFIX = "mdcompose"
 

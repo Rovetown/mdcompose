@@ -354,3 +354,150 @@ def test_a_fresh_clone_reports_clean_whatever_the_line_endings(tmp_path: Path) -
 def test_each_managed_file_maps_to_its_block(tmp_path: Path) -> None:
     assert manifest_module.BLOCK_ID_BY_KEY["agents_md"] == AGENTS_BLOCK
     assert manifest_module.BLOCK_ID_BY_KEY["claude_md"] == CLAUDE_BLOCK
+
+
+# --- schema version 2: skills and explicit block_id ---
+
+SKILL_BLOCK = "skill-managed"
+SKILL_CONTENT = "Review for correctness first.\n"
+SKILL_HASH = files.hash_content(SKILL_CONTENT)
+
+
+def skill_file(content: str = SKILL_CONTENT) -> str:
+    return (
+        f"---\nname: code-review\n---\n\n"
+        f"{managed_block.start_marker(SKILL_BLOCK)}\n"
+        f"{content}"
+        f"{managed_block.end_marker(SKILL_BLOCK)}\n"
+    )
+
+
+def test_a_schema_2_manifest_reads_an_explicit_block_id(tmp_path: Path) -> None:
+    payload = manifest_payload(
+        files={
+            "agents_md": {
+                "path": "AGENTS.md",
+                "mode": "copy",
+                "managed_block_hash": COMPOSED_HASH,
+                "block_id": AGENTS_BLOCK,
+            },
+            "code-review": {
+                "path": ".claude/skills/code-review/SKILL.md",
+                "mode": "copy",
+                "managed_block_hash": SKILL_HASH,
+                "block_id": SKILL_BLOCK,
+            },
+        }
+    )
+    manifest = manifest_module.load_manifest(write_manifest(tmp_path, payload))
+    assert manifest is not None
+    assert manifest.files["code-review"].block_id == SKILL_BLOCK
+    assert manifest.files["agents_md"].block_id == AGENTS_BLOCK
+
+
+def test_drift_checks_a_skill_keyed_entry_using_its_explicit_block_id(tmp_path: Path) -> None:
+    (tmp_path / ".claude" / "skills" / "code-review").mkdir(parents=True)
+    (tmp_path / ".claude" / "skills" / "code-review" / "SKILL.md").write_text(
+        skill_file(), encoding="utf-8"
+    )
+    payload = manifest_payload(
+        files={
+            "code-review": {
+                "path": ".claude/skills/code-review/SKILL.md",
+                "mode": "copy",
+                "managed_block_hash": SKILL_HASH,
+                "block_id": SKILL_BLOCK,
+            }
+        }
+    )
+    manifest = manifest_module.load_manifest(write_manifest(tmp_path, payload))
+    assert manifest is not None
+    drift = manifest_module.detect_drift(manifest, tmp_path)
+    assert drift[0].status == manifest_module.CLEAN
+
+
+def test_a_schema_1_manifest_still_reads_with_no_block_id(tmp_path: Path) -> None:
+    """A version-1 manifest never wrote block_id; the well-known map fills it in."""
+    payload = manifest_payload(schema_version=1)
+    assert "block_id" not in payload["files"]["agents_md"]
+    manifest = manifest_module.load_manifest(write_manifest(tmp_path, payload))
+    assert manifest is not None
+    assert manifest.files["agents_md"].block_id is None
+    assert manifest.skills == ()
+    (tmp_path / "AGENTS.md").write_text(agents_file(), encoding="utf-8")
+    drift = manifest_module.detect_drift(manifest, tmp_path)
+    assert drift[0].status == manifest_module.CLEAN
+
+
+def test_skills_list_is_parsed_like_snippets(tmp_path: Path) -> None:
+    payload = manifest_payload(
+        skills=[{"id": "code-review", "position": 0, "content": SKILL_CONTENT}]
+    )
+    manifest = manifest_module.load_manifest(write_manifest(tmp_path, payload))
+    assert manifest is not None
+    assert manifest.skills[0].id == "code-review"
+    assert manifest.skills[0].content == SKILL_CONTENT
+
+
+def test_a_skill_entry_without_content_is_refused_by_id(tmp_path: Path) -> None:
+    payload = manifest_payload(skills=[{"id": "code-review", "position": 0}])
+    with pytest.raises(AttentionError) as raised:
+        manifest_module.load_manifest(write_manifest(tmp_path, payload))
+    message = str(raised.value)
+    assert "code-review" in message
+    assert "content" in message
+
+
+def test_skills_composition_order_comes_from_the_manifest_alone(tmp_path: Path) -> None:
+    payload = manifest_payload(
+        skills=[
+            {"id": "second", "position": 1, "content": "b\n"},
+            {"id": "first", "position": 0, "content": "a\n"},
+        ]
+    )
+    manifest = manifest_module.load_manifest(write_manifest(tmp_path, payload))
+    assert manifest is not None
+    assert [entry.id for entry in manifest.skills_in_order()] == ["first", "second"]
+
+
+FIXTURES = Path(__file__).parent / "fixtures"
+
+
+def test_a_real_schema_1_fixture_still_loads(tmp_path: Path) -> None:
+    """Checked-in fixture from before schema 2 existed: it must keep reading."""
+    fixture = FIXTURES / "mdcompose.lock.schema1.json"
+    manifest = manifest_module.load_manifest(fixture)
+    assert manifest is not None
+    assert manifest.schema_version == 1
+    assert manifest.skills == ()
+    assert manifest.files["agents_md"].block_id is None
+    assert manifest.files["claude_md"].block_id is None
+    assert manifest.snippets[0].id == "commit-style"
+    drift = manifest_module.detect_drift(manifest, tmp_path)
+    assert {entry.key for entry in drift} == {"agents_md", "claude_md"}
+    assert all(entry.status == manifest_module.MISSING for entry in drift)
+
+
+def test_build_and_write_round_trip_skills_and_block_id(tmp_path: Path) -> None:
+    built = manifest_module.build(
+        generated_by="mdcompose 0.2.0",
+        generated_at="2026-09-14T00:00:00Z",
+        detected_stack=(),
+        snippets=(),
+        skills=(manifest_module.SkillEntry(id="code-review", position=0, content=SKILL_CONTENT),),
+        files_recorded={
+            "code-review": manifest_module.FileEntry(
+                path=".claude/skills/code-review/SKILL.md",
+                mode="copy",
+                managed_block_hash=SKILL_HASH,
+                block_id=SKILL_BLOCK,
+            )
+        },
+        source=manifest_module.manifest_path(tmp_path),
+    )
+    manifest_module.write_manifest(built, built.source)
+    reread = manifest_module.load_manifest(built.source)
+    assert reread is not None
+    assert reread.schema_version == manifest_module.SCHEMA_VERSION
+    assert reread.skills[0].id == "code-review"
+    assert reread.files["code-review"].block_id == SKILL_BLOCK

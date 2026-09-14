@@ -39,6 +39,28 @@ No substitution syntax is reserved either, deliberately -- a snippet containing 
 The library itself is a flat directory of these files -- no index, no cache, no database.
 mdcompose never writes anything else into it and never touches an entry it did not create (a `.git` directory, a stray subdirectory, a file with another extension), which is what lets you keep the library under version control without the tool fighting you.
 
+## Skill frontmatter
+
+A skill is a second library, entirely separate from the snippet library, in the same format: one markdown file per skill, optional YAML frontmatter then body, filename minus `.md` as the id.
+Configured the same way too -- `skill_library_path` in the global config, defaulting to a `skills` sibling of the snippet library's own default directory.
+
+| Field | Type | Meaning |
+| ----- | ---- | ------- |
+| `title` | string | shown to a person; the id is used when absent |
+| `description` | string | one line of help, and what becomes the composed file's frontmatter description |
+| `tags` | list of strings | for filtering |
+| `stack_signals` | list of strings | filenames suggesting relevance |
+| `category` | string | a grouping label in the picker |
+
+There is no `applies_to` and no `order`: a skill is never split between AGENTS.md and CLAUDE.md the way a snippet can be, and its body is never concatenated with another skill's the way several snippet bodies share one block, so neither field has anything to do.
+
+`init` offers the skill library as a second, independently optional checkbox picker alongside the snippet picker.
+Each selected skill becomes its own file at `.claude/skills/<id>/SKILL.md`: generated `name`/`description` frontmatter first, then a managed block holding the skill's body, hashed and drift-checked the same way AGENTS.md's block is.
+The frontmatter is regenerated from the library on every run, even when only the description changed and the block's content did not -- unlike a managed block's surroundings, it is not content mdcompose leaves alone, since Claude Code needs it to track the library, not a stale copy.
+
+Deselecting a skill deletes its file outright, and its now-empty `.claude/skills/<id>/` directory with it, rather than leaving an empty block the way AGENTS.md would: an empty `SKILL.md` means nothing to a skill-loading agent.
+An empty or unconfigured skill library never blocks `init`, and the reverse holds too -- an empty snippet library does not stop skills from composing.
+
 ## Drift detection: normalization and hashing
 
 A managed block's hash has to mean the same thing on Windows, under WSL, and on Linux, or a committed lock file could never be trusted across a team.
@@ -129,17 +151,14 @@ None of them do these, which is the actual reason to reach for mdcompose instead
   Composing from a repository already means trusting its authors the way you trust their build scripts; mdcompose adds no second channel on top of that.
 - **Every interactive prompt has a flag.** Nothing here requires a human at a keyboard: `init --reapply`, `import --save-as-snippet`, and their siblings mean every command that can prompt can also run unattended, with the exit code contract above making the result scriptable in CI.
 
-One more, planned rather than shipped: none of the three alternatives above appear to be aiming past agent *instructions*.
-A skill file (Claude Code Skills, or whatever equivalent another tool adds) is already snippet-shaped -- frontmatter, a body, sometimes a script alongside it -- so composing those the same way is a natural extension of the same idea, not a new mechanism.
-It is flagged here rather than claimed as a feature; see Planned below.
+One more: none of the three alternatives above appear to be aiming past agent *instructions*.
+A skill file (Claude Code Skills, or whatever equivalent another tool adds) is snippet-shaped -- frontmatter, then a body -- so mdcompose composes those the same way it composes AGENTS.md and CLAUDE.md, as a second, independent library; see Skill frontmatter above.
+A skill bundled with an accompanying script is not yet supported, since the library and manifest model here is single-file-per-item throughout.
 
 ## Planned
 
 Larger efforts, tracked in [TODO.md](../TODO.md) under Roadmap, not needed for `0.1.0` and not yet built:
 
-- **Composing agent skills, not just AGENTS.md and CLAUDE.md.** A skill file (Claude Code Skills, or an equivalent another tool adds) is already snippet-shaped, so extending composition to skills would let a personal library of them be curated per project instead of an agent loading every skill unconditionally.
-  Fewer unneeded skills loaded is context an agent never has to spend, which makes this a token-efficiency argument, not only an organizational one.
-  Not scoped: a second composed-file family has to prove it reuses the existing core rather than forking it, the same bar every item below has to clear.
 - **A TUI**, likely on Textual, as a second adapter over the same core: browse and filter the library, tick snippets for a project, see per-file drift, review a diff before writing.
   The CLI stays the interface that has to work unattended -- exit codes, the stdout/stderr split, `--json`, `--quiet` are CLI concepts with no TUI equivalent, so the TUI is additive, never the only way to do something.
 - **A shared, browsable community snippet library, gated behind the TUI.** Concept borrowed from the skill marketplaces appearing around Claude Code Skills: a public GitHub repository as the source, crawled and indexed through GitHub's API into a locally cached, fuzzy-searchable list of community-contributed snippets, browsed and pulled into your own library one at a time from inside the TUI.

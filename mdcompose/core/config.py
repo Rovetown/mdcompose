@@ -24,12 +24,20 @@ Mode = Literal["import", "copy"]
 CONFIG_FILENAME = "config.json"
 SCHEMA_VERSION = 1
 LIBRARY_DIR_NAME = "snippets"
+SKILL_LIBRARY_DIR_NAME = "skills"
 
 #: The keys `config set` and `config unset` accept, each mapped to how its value
 #: is validated. A dotted key addresses a field inside the `claude_global`
 #: object. `schema_version` is deliberately absent: it describes the file format,
 #: not a preference.
-_PATH_KEYS = frozenset({"snippet_library_path", "global_agents_path", "claude_global.path"})
+_PATH_KEYS = frozenset(
+    {
+        "snippet_library_path",
+        "skill_library_path",
+        "global_agents_path",
+        "claude_global.path",
+    }
+)
 _MODE_KEYS = frozenset({"default_mode", "claude_global.mode"})
 SETTABLE_KEYS: tuple[str, ...] = tuple(sorted(_PATH_KEYS | _MODE_KEYS))
 
@@ -38,6 +46,7 @@ _KNOWN_KEYS = frozenset(
     {
         "schema_version",
         "snippet_library_path",
+        "skill_library_path",
         "default_mode",
         "claude_global",
         "global_agents_path",
@@ -81,6 +90,7 @@ class GlobalConfig:
 
     schema_version: int | None = None
     snippet_library_path: str | None = None
+    skill_library_path: str | None = None
     default_mode: Mode | None = None
     claude_global: ClaudeGlobal | None = None
     global_agents_path: str | None = None
@@ -141,6 +151,7 @@ def _parse(raw: object, path: Path) -> GlobalConfig:
     return GlobalConfig(
         schema_version=_as_int(raw, "schema_version", path),
         snippet_library_path=_as_str(raw, "snippet_library_path", path),
+        skill_library_path=_as_str(raw, "skill_library_path", path),
         default_mode=_as_mode(raw, "default_mode", path),
         claude_global=_as_claude_global(raw, path),
         global_agents_path=_as_str(raw, "global_agents_path", path),
@@ -256,6 +267,18 @@ def library_dir(config: GlobalConfig, config_directory: Path) -> Path:
     return config_directory / LIBRARY_DIR_NAME
 
 
+def skill_library_dir(config: GlobalConfig, config_directory: Path) -> Path:
+    """Return the skill library directory, configured or defaulted.
+
+    An unset ``skill_library_path`` defaults to a ``skills`` directory inside
+    the config directory, a sibling of the snippet library's own default. Does
+    not create the directory.
+    """
+    if config.skill_library_path is not None:
+        return Path(config.skill_library_path).expanduser()
+    return config_directory / SKILL_LIBRARY_DIR_NAME
+
+
 FieldState = Literal["set", "default", "not-configured", "unrecognized"]
 
 
@@ -276,6 +299,11 @@ def describe(config: GlobalConfig, config_directory: Path) -> tuple[FieldView, .
     else:
         resolved = library_dir(config, config_directory).as_posix()
         views.append(FieldView("snippet_library_path", resolved, "default"))
+    if config.skill_library_path is not None:
+        views.append(FieldView("skill_library_path", config.skill_library_path, "set"))
+    else:
+        resolved_skills = skill_library_dir(config, config_directory).as_posix()
+        views.append(FieldView("skill_library_path", resolved_skills, "default"))
     views.append(_scalar_view("default_mode", config.default_mode))
     views.append(_scalar_view("global_agents_path", config.global_agents_path))
     nested = config.claude_global
@@ -388,6 +416,8 @@ def _expanded_path(raw_value: str) -> str:
 def _with_path(config: GlobalConfig, key: str, value: str | None) -> GlobalConfig:
     if key == "snippet_library_path":
         return replace(config, snippet_library_path=value)
+    if key == "skill_library_path":
+        return replace(config, skill_library_path=value)
     if key == "global_agents_path":
         return replace(config, global_agents_path=value)
     # The only remaining path key is the nested claude_global.path.
@@ -422,6 +452,8 @@ def to_document(config: GlobalConfig) -> dict[str, object]:
     document: dict[str, object] = {"schema_version": config.schema_version or SCHEMA_VERSION}
     if config.snippet_library_path is not None:
         document["snippet_library_path"] = config.snippet_library_path
+    if config.skill_library_path is not None:
+        document["skill_library_path"] = config.skill_library_path
     if config.default_mode is not None:
         document["default_mode"] = config.default_mode
     if config.claude_global is not None:

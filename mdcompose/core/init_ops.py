@@ -20,10 +20,12 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal
 
-from mdcompose.core import composition, files, managed_block, platform
+from mdcompose.core import composition, files, managed_block, platform, skill_composition
 from mdcompose.core import manifest as manifest_module
+from mdcompose.core import skills as skills_module
 from mdcompose.core.config import Mode
 from mdcompose.core.exit_codes import AttentionError
+from mdcompose.core.skills import Skill
 from mdcompose.core.snippets import LibraryView, Snippet
 
 DriftChoice = Literal["keep", "overwrite", "abort"]
@@ -41,16 +43,28 @@ SelectionSource = Literal["flag", "detected", "picker", "manifest", "embedded"]
 #: reaching into core.
 Selector = Callable[[tuple[Snippet, ...], tuple[str, ...]], tuple[str, ...]]
 
+#: Chooses skills, shaped exactly like ``Selector`` but over the skill library.
+SkillSelector = Callable[[tuple[Skill, ...], tuple[str, ...]], tuple[str, ...]]
+
+_EMPTY_SKILL_LIBRARY = skills_module.LibraryView(directory=Path())
+
 
 @dataclass(frozen=True, slots=True)
 class FileTarget:
-    """One managed file: where it is, which block it owns, what goes in it."""
+    """One managed file: where it is, which block it owns, what goes in it.
+
+    ``frontmatter`` is ``None`` for AGENTS.md/CLAUDE.md, where nothing sits
+    outside the managed block that mdcompose itself generates. It is set for
+    a skill target, whose ``name``/``description`` frontmatter must precede
+    the block and is regenerated on every write; see ``skill_composition.py``.
+    """
 
     key: str
     path: Path
     block_id: str
     content: str
     relative_path: str
+    frontmatter: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -66,6 +80,9 @@ class InitPlan:
     drift: tuple[manifest_module.FileDrift, ...]
     imports: str | None
     from_embedded: bool
+    skill_selection: tuple[Skill, ...] = ()
+    skill_selection_source: SelectionSource = "detected"
+    stale_skill_paths: tuple[Path, ...] = ()
 
     @property
     def drifted(self) -> tuple[manifest_module.FileDrift, ...]:
@@ -97,6 +114,7 @@ class InitResult:
     written: tuple[str, ...] = ()
     unchanged: tuple[str, ...] = ()
     kept: tuple[str, ...] = ()
+    deleted: tuple[str, ...] = ()
     manifest_path: Path | None = None
     extra: Mapping[str, object] = field(default_factory=dict)
 
@@ -155,6 +173,73 @@ def _snippets_for(library: LibraryView, ids: tuple[str, ...]) -> tuple[Snippet, 
     return tuple(library.require(candidate) for candidate in ids)
 
 
+def resolve_skill_selection(
+    library: skills_module.LibraryView,
+    *,
+    manifest: manifest_module.Manifest | None,
+    requested_ids: tuple[str, ...] | None,
+    detected_ids: tuple[str, ...],
+    accept_detected: bool,
+    selector: SkillSelector | None,
+) -> tuple[tuple[Skill, ...], SelectionSource]:
+    """Work out which skills to compose, mirroring ``resolve_selection``.
+
+    The one divergence: an empty skill library with no explicit selection and
+    no terminal to ask on resolves to an empty selection instead of raising.
+    Skills are independently optional, so a project that has never touched
+    the skill library must not be blocked by it; a non-empty library still
+    needs an explicit answer, the same as the snippet library does.
+    """
+    if requested_ids is not None:
+        return _skills_for(library, requested_ids), "flag"
+    if accept_detected:
+        return _skills_for(library, detected_ids), "detected"
+
+    recorded = _recorded_skill_ids(manifest)
+    preselected = recorded if recorded is not None else detected_ids
+    if selector is None:
+        if recorded is not None:
+            return _skills_for(library, recorded), "manifest"
+        if library.is_empty:
+            return (), "detected"
+        raise AttentionError(
+            "no skill selection was supplied and there is no terminal to open the "
+            "picker on. Pass --skills with a comma-separated list, or --yes to "
+            "accept the detected suggestions."
+        )
+    chosen = selector(library.skills, preselected)
+    return _skills_for(library, tuple(chosen)), "picker"
+
+
+def _recorded_skill_ids(manifest: manifest_module.Manifest | None) -> tuple[str, ...] | None:
+    if manifest is None:
+        return None
+    return tuple(entry.id for entry in manifest.skills_in_order())
+
+
+def _skills_for(library: skills_module.LibraryView, ids: tuple[str, ...]) -> tuple[Skill, ...]:
+    """Resolve ids against the skill library, naming every one that is unknown."""
+    unknown = [candidate for candidate in ids if library.find(candidate) is None]
+    if unknown:
+        listed = ", ".join(f"'{item}'" for item in unknown)
+        available = ", ".join(item.id for item in library.skills) or "none"
+        raise AttentionError(
+            f"no skill named {listed} in the skill library. Available: {available}"
+        )
+    return tuple(library.require(candidate) for candidate in ids)
+
+
+def skills_from_manifest(manifest: manifest_module.Manifest) -> tuple[Skill, ...]:
+    """Build a skill selection from a manifest's embedded content.
+
+    Used on the clone path, where the local skill library may be empty or
+    may not have this skill at all.
+    """
+    return tuple(
+        Skill(id=entry.id, body=entry.content) for entry in manifest.skills_in_order()
+    )
+
+
 def snippets_from_manifest(manifest: manifest_module.Manifest) -> tuple[Snippet, ...]:
     """Build a selection from a manifest's embedded content.
 
@@ -210,9 +295,13 @@ def plan(
     selector: Selector | None = None,
     ask_mode: Callable[[], Mode] | None = None,
     import_from: str | None = None,
+    skill_library: skills_module.LibraryView | None = None,
+    requested_skill_ids: tuple[str, ...] | None = None,
+    skill_selector: SkillSelector | None = None,
 ) -> InitPlan:
     """Decide everything init would do, without touching a single file."""
-    detected_stack, suggested_ids = _detect(root, library)
+    skill_lib = _EMPTY_SKILL_LIBRARY if skill_library is None else skill_library
+    detected_stack, suggested_ids, suggested_skill_ids = _detect(root, library, skill_lib)
     drift = () if manifest is None else manifest_module.detect_drift(manifest, root)
     from_embedded = manifest is not None and any(
         item.status in {manifest_module.MISSING, manifest_module.BLOCK_REMOVED}
@@ -237,6 +326,19 @@ def plan(
             selector=selector,
         )
 
+    if from_embedded and requested_skill_ids is None:
+        skill_selection: tuple[Skill, ...] = skills_from_manifest(manifest)  # type: ignore[arg-type]
+        skill_source: SelectionSource = "embedded"
+    else:
+        skill_selection, skill_source = resolve_skill_selection(
+            skill_lib,
+            manifest=manifest,
+            requested_ids=requested_skill_ids,
+            detected_ids=suggested_skill_ids,
+            accept_detected=accept_detected,
+            selector=skill_selector,
+        )
+
     recorded_mode = _recorded_mode(manifest)
     mode = resolve_mode(
         requested=requested_mode,
@@ -253,29 +355,62 @@ def plan(
         selection=selection,
         selection_source=source,
         detected_stack=detected_stack,
-        targets=_targets(root, composed, import_from is not None),
+        targets=_targets(root, composed, import_from is not None, skill_selection),
         drift=drift,
         imports=composed.imports,
         from_embedded=from_embedded,
+        skill_selection=skill_selection,
+        skill_selection_source=skill_source,
+        stale_skill_paths=_stale_skill_paths(
+            root, manifest, tuple(skill.id for skill in skill_selection)
+        ),
     )
 
 
-def _detect(root: Path, library: LibraryView) -> tuple[tuple[str, ...], tuple[str, ...]]:
-    """Return the signal files found, and the snippet ids they suggest.
+def _detect(
+    root: Path, library: LibraryView, skill_library: skills_module.LibraryView
+) -> tuple[tuple[str, ...], tuple[str, ...], tuple[str, ...]]:
+    """Return the signal files found, and the snippet and skill ids they suggest.
 
-    These are two different things and conflating them is a mistake worth naming:
-    the found files are what the manifest records as the detected stack, while the
-    suggested ids are what the picker pre-checks. A signal filename is not a
-    snippet id.
+    One scan of the target directory feeds both pickers' pre-checks: the found
+    files are what the manifest records as the detected stack, while the two
+    suggested-id tuples are what each picker pre-checks. A signal filename is
+    not an id in either library.
     """
     signals = {signal for snippet in library.snippets for signal in snippet.stack_signals}
+    signals |= {signal for skill in skill_library.skills for signal in skill.stack_signals}
     found = platform.scan_stack_signals(root, signals)
     suggested = tuple(
         snippet.id
         for snippet in library.snippets
         if any(signal in found for signal in snippet.stack_signals)
     )
-    return found, suggested
+    suggested_skills = tuple(
+        skill.id
+        for skill in skill_library.skills
+        if any(signal in found for signal in skill.stack_signals)
+    )
+    return found, suggested, suggested_skills
+
+
+def _stale_skill_paths(
+    root: Path, manifest: manifest_module.Manifest | None, current_skill_ids: tuple[str, ...]
+) -> tuple[Path, ...]:
+    """Manifest-recorded skill files not in the current selection, by full path.
+
+    Anything in ``manifest.files`` keyed by something other than the two
+    well-known AGENTS.md/CLAUDE.md keys is a skill entry, since this is the
+    only feature that ever writes a third kind of key.
+    """
+    if manifest is None:
+        return ()
+    current = set(current_skill_ids)
+    return tuple(
+        root / entry.path
+        for key, entry in manifest.files.items()
+        if key not in {manifest_module.AGENTS_MD_KEY, manifest_module.CLAUDE_MD_KEY}
+        and key not in current
+    )
 
 
 def _recorded_mode(manifest: manifest_module.Manifest | None) -> Mode | None:
@@ -312,12 +447,17 @@ def relative_import_target(agents_path: Path, claude_dir: Path) -> str:
 
 
 def _targets(
-    root: Path, composed: composition.Composition, alternate_import: bool
+    root: Path,
+    composed: composition.Composition,
+    alternate_import: bool,
+    skill_selection: Sequence[Skill] = (),
 ) -> tuple[FileTarget, ...]:
     """Which files this run writes.
 
     An alternate import source is somebody else's file, so it is never written
-    here: only this directory's CLAUDE.md is.
+    here: only this directory's CLAUDE.md is. Skill targets are independent of
+    both: a project can compose skills with no AGENTS.md/CLAUDE.md change, and
+    the reverse.
     """
     claude = FileTarget(
         key=manifest_module.CLAUDE_MD_KEY,
@@ -326,9 +466,7 @@ def _targets(
         content=composed.claude_block,
         relative_path="CLAUDE.md",
     )
-    if alternate_import:
-        return (claude,)
-    return (
+    base = (claude,) if alternate_import else (
         FileTarget(
             key=manifest_module.AGENTS_MD_KEY,
             path=root / "AGENTS.md",
@@ -338,6 +476,26 @@ def _targets(
         ),
         claude,
     )
+    return base + _skill_targets(root, skill_selection)
+
+
+def _skill_targets(root: Path, selection: Sequence[Skill]) -> tuple[FileTarget, ...]:
+    return tuple(
+        FileTarget(
+            key=skill.id,
+            path=skill_composition.skill_path(root, skill.id),
+            block_id=managed_block.SKILL_MANAGED_BLOCK,
+            content=_skill_body(skill),
+            relative_path=skill_composition.skill_path(Path(), skill.id).as_posix(),
+            frontmatter=skill_composition.render_frontmatter(skill),
+        )
+        for skill in selection
+    )
+
+
+def _skill_body(skill: Skill) -> str:
+    normalized = files.normalize(skill.body).strip("\n")
+    return f"{normalized}\n" if normalized else ""
 
 
 def apply(
@@ -358,6 +516,8 @@ def apply(
     if any(choice == ABORT for choice in choices.values()):
         raise AttentionError("aborted before writing anything")
 
+    deleted = _delete_stale_skill_files(plan_to_apply.stale_skill_paths)
+
     written: list[str] = []
     unchanged: list[str] = []
     kept: list[str] = []
@@ -368,7 +528,13 @@ def apply(
             kept.append(target.key)
             entries[target.key] = _entry_for_existing(target, plan_to_apply)
             continue
-        if composition.apply_to_file(target.path, target.block_id, target.content):
+        if target.frontmatter is not None:
+            changed = skill_composition.apply_to_file(
+                target.path, target.block_id, target.content, target.frontmatter
+            )
+        else:
+            changed = composition.apply_to_file(target.path, target.block_id, target.content)
+        if changed:
             written.append(target.key)
         else:
             unchanged.append(target.key)
@@ -381,6 +547,7 @@ def apply(
             generated_at=now or datetime.now(UTC).replace(microsecond=0).isoformat(),
             detected_stack=plan_to_apply.detected_stack,
             snippets=_snippet_entries(plan_to_apply.selection),
+            skills=_skill_entries(plan_to_apply.skill_selection),
             files_recorded=entries,
             source=manifest_target,
         ),
@@ -390,15 +557,39 @@ def apply(
         written=tuple(written),
         unchanged=tuple(unchanged),
         kept=tuple(kept),
+        deleted=deleted,
         manifest_path=manifest_target,
     )
+
+
+def _delete_stale_skill_files(paths: Sequence[Path]) -> tuple[str, ...]:
+    """Delete a manifest-recorded skill file no longer in the selection.
+
+    Removes the skill's directory afterward only if it is now empty, never a
+    directory the user has put something else into.
+    """
+    deleted: list[str] = []
+    for path in paths:
+        if files.path_exists(path) and path.is_file():
+            path.unlink()
+            deleted.append(path.as_posix())
+        parent = path.parent
+        if files.path_exists(parent) and parent.is_dir() and not any(parent.iterdir()):
+            parent.rmdir()
+    return tuple(deleted)
+
+
+def _entry_mode(target: FileTarget, plan_to_apply: InitPlan) -> Mode:
+    """A skill target has no import/copy distinction; it is always materialized."""
+    return composition.COPY if target.frontmatter is not None else plan_to_apply.mode
 
 
 def _entry_for(target: FileTarget, plan_to_apply: InitPlan) -> manifest_module.FileEntry:
     return manifest_module.FileEntry(
         path=target.relative_path,
-        mode=plan_to_apply.mode,
+        mode=_entry_mode(target, plan_to_apply),
         managed_block_hash=files.hash_content(target.content),
+        block_id=target.block_id,
         imports=plan_to_apply.imports if target.key == manifest_module.CLAUDE_MD_KEY else None,
     )
 
@@ -418,8 +609,9 @@ def _entry_for_existing(
     content = target.content if block is None else block.content
     return manifest_module.FileEntry(
         path=target.relative_path,
-        mode=plan_to_apply.mode,
+        mode=_entry_mode(target, plan_to_apply),
         managed_block_hash=files.hash_content(content),
+        block_id=target.block_id,
         imports=plan_to_apply.imports if target.key == manifest_module.CLAUDE_MD_KEY else None,
     )
 
@@ -433,4 +625,11 @@ def _snippet_entries(selection: Sequence[Snippet]) -> tuple[manifest_module.Snip
             content=snippet.body,
         )
         for index, snippet in enumerate(selection)
+    )
+
+
+def _skill_entries(selection: Sequence[Skill]) -> tuple[manifest_module.SkillEntry, ...]:
+    return tuple(
+        manifest_module.SkillEntry(id=skill.id, position=index, content=skill.body)
+        for index, skill in enumerate(selection)
     )

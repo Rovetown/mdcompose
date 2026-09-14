@@ -42,6 +42,7 @@ def test_show_lists_every_recognized_field(invoke: Invoke, config_dir: Path) -> 
     assert result.code == EXIT_OK
     for field in (
         "snippet_library_path",
+        "skill_library_path",
         "default_mode",
         "global_agents_path",
         "claude_global.path",
@@ -86,6 +87,30 @@ def test_show_marks_an_explicitly_set_library_path(invoke: Invoke, config_dir: P
         ln for ln in invoke("config", "show").out.splitlines() if "snippet_library_path" in ln
     )
     assert "set" in line and "/somewhere/snips" in line
+
+
+def test_show_marks_a_defaulted_skill_library_path(invoke: Invoke, config_dir: Path) -> None:
+    line = next(
+        ln for ln in invoke("config", "show").out.splitlines() if "skill_library_path" in ln
+    )
+    assert "default" in line
+
+
+def test_show_marks_an_explicitly_set_skill_library_path(invoke: Invoke, config_dir: Path) -> None:
+    write_raw(config_dir, {"schema_version": 1, "skill_library_path": "/somewhere/skills"})
+    line = next(
+        ln for ln in invoke("config", "show").out.splitlines() if "skill_library_path" in ln
+    )
+    assert "set" in line and "/somewhere/skills" in line
+
+
+def test_set_and_unset_skill_library_path(invoke: Invoke, config_dir: Path) -> None:
+    target = config_dir.parent / "skills-elsewhere"
+    invoke("config", "set", "skill_library_path", str(target))
+    stored = json.loads(config_file(config_dir).read_text(encoding="utf-8"))["skill_library_path"]
+    assert stored == target.as_posix()
+    invoke("config", "unset", "skill_library_path")
+    assert "skill_library_path" not in config_file(config_dir).read_text(encoding="utf-8")
 
 
 def test_show_marks_an_unrecognized_nested_claude_global_key(

@@ -304,3 +304,24 @@ def test_hash_is_comparable_across_platforms() -> None:
     windows_checkout = files.BOM + WELL_FORMED.replace("\n", "\r\n")
     linux_checkout = WELL_FORMED
     assert block_hash(windows_checkout) == block_hash(linux_checkout)
+
+
+def test_skill_managed_block_round_trips_like_the_other_two(tmp_path: Path) -> None:
+    """The skill block id is just another block id: no special-casing needed."""
+    block_id = managed_block.SKILL_MANAGED_BLOCK
+    target = tmp_path / "SKILL.md"
+    target.write_text("---\nname: x\n---\n\n", encoding="utf-8")
+    written = managed_block.upsert(target.read_text(encoding="utf-8"), block_id, "Body.\n", target)
+    target.write_text(written, encoding="utf-8")
+
+    result = managed_block.read_blocks(target)
+    block = result.find(block_id)
+    assert block is not None
+    assert block.content == "Body.\n"
+
+
+def test_skill_managed_block_id_is_distinct(tmp_path: Path) -> None:
+    assert managed_block.SKILL_MANAGED_BLOCK not in {
+        managed_block.AGENTS_COMPOSITION_BLOCK,
+        managed_block.CLAUDE_MANAGED_BLOCK,
+    }

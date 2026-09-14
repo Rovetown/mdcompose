@@ -149,6 +149,32 @@ def test_explicit_library_path_is_flagged_as_chosen(tmp_path: Path) -> None:
     assert chosen.library_path_is_explicit is True
 
 
+def test_skill_library_defaults_inside_the_config_directory(tmp_path: Path) -> None:
+    configuration = config_module.load_config(config_module.config_path(tmp_path))
+    assert config_module.skill_library_dir(configuration, tmp_path) == tmp_path / "skills"
+
+
+def test_configured_skill_library_path_wins(tmp_path: Path) -> None:
+    configuration = config_module.load_config(
+        write_config(tmp_path, {"skill_library_path": str(tmp_path / "elsewhere")})
+    )
+    assert config_module.skill_library_dir(configuration, tmp_path) == tmp_path / "elsewhere"
+
+
+def test_skill_library_resolution_creates_nothing(tmp_path: Path) -> None:
+    configuration = config_module.load_config(config_module.config_path(tmp_path))
+    resolved = config_module.skill_library_dir(configuration, tmp_path)
+    assert resolved.exists() is False
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_skill_and_snippet_libraries_default_to_separate_directories(tmp_path: Path) -> None:
+    configuration = config_module.load_config(config_module.config_path(tmp_path))
+    assert config_module.library_dir(configuration, tmp_path) != config_module.skill_library_dir(
+        configuration, tmp_path
+    )
+
+
 # --- section 1: validation for config set / unset ---
 
 EMPTY = config_module.GlobalConfig()
@@ -192,6 +218,13 @@ def test_a_tilde_path_is_stored_expanded(monkeypatch: pytest.MonkeyPatch, tmp_pa
     updated = config_module.apply_set(EMPTY, "snippet_library_path", "~/snippets")
     assert updated.snippet_library_path == (tmp_path / "snippets").as_posix()
     assert "~" not in updated.snippet_library_path
+
+
+def test_skill_library_path_sets_and_unsets(tmp_path: Path) -> None:
+    updated = config_module.apply_set(EMPTY, "skill_library_path", str(tmp_path / "skills"))
+    assert updated.skill_library_path == (tmp_path / "skills").as_posix()
+    reverted = config_module.apply_unset(updated, "skill_library_path")
+    assert reverted.skill_library_path is None
 
 
 def test_a_relative_path_is_stored_absolute(
