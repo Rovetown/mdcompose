@@ -5,158 +5,42 @@ management CLI. Everything here is either open or a decision worth keeping.
 
 ## Next
 
-The codebase and the automation are done. The repo is live at
-`github.com/Rovetown/mdcompose` and the account-side setup in "Repository and
-release setup" below is complete (ruleset, `RELEASE_TOKEN`, the `pypi` and
-`testpypi` environments, both trusted publishers, Dependabot, private
-vulnerability reporting). What remains is the first release, a few follow-ups,
-and a set of OpenSSF Scorecard items folded into the sequence at the step each
-one belongs to. The Scorecard reasoning is in [`docs/scorecard.md`](docs/scorecard.md).
+The codebase, the automation, and the account-side release setup are all done.
+The repo is live at `github.com/Rovetown/mdcompose`, `v0.1.3` is on PyPI, and
+the WSL demo recording did a clean-venv `pip install` against that real
+published package. What is left is a short list of items that are either
+genuinely still open or deliberately deferred to a future trigger (a date, a
+second maintainer, a badge cache catching up). The Scorecard reasoning behind
+the deferred items is in [`docs/scorecard.md`](docs/scorecard.md).
 
-### Scorecard, current state
+Done: CodSpeed badge added to the README badge row, `style=for-the-badge`,
+placed next to the CI badge. Done: PyPI, Python-versions, and OpenSSF
+Scorecard badges confirmed rendering real values, not "unknown" or a
+broken-image placeholder.
 
-1. Done. [`SECURITY.md`](SECURITY.md) carries the private-advisory URL
-   (`https://github.com/Rovetown/mdcompose/security/advisories/new`). Confirmed
-   in the `scorecard.yml` run for commit `b730e9e`: Security-Policy, along with
-   Signed-Releases and Packaging, all score 10. Overall: 7.2. Remaining gap is
-   Maintained (0, clears at 90 days), CII-Best-Practices (0, needs
-   registration, see step 7 below), and the accepted solo-maintainer limits
-   (Code-Review, Contributors, Branch-Protection, Fuzzing). See
-   [`docs/scorecard.md`](docs/scorecard.md) for the full detail.
+### Deferred
 
-### First release
-
-2. Done, verifies at step 4. `release.yml` `build` job runs
-   `actions/attest-build-provenance` over `dist/*` (job now has
-   `id-token: write` and `attestations: write`), stages the bundle as
-   `mdcompose.intoto.jsonl`, and the `github-release` job attaches it to the
-   Release (assets are now listed explicitly, since the artifact download keeps
-   the `dist/` subdirectory and `gh release create` rejects a directory arg).
-   A SLSA `*.intoto.jsonl` scores 10 on Signed-Releases. Only runs on a stable
-   tag; pre-releases get no GitHub Release. Nothing to verify until the first
-   stable release lands the assets.
-3. Done. Alpha dry run published `0.1.0a0` to TestPyPI, verified end to end:
-   `release.yml` build -> attest -> TestPyPI, `pypi` and `github-release` jobs
-   correctly skipped, `gh attestation verify` passed online and against the
-   staged `mdcompose.intoto.jsonl`, clean-venv `pip install` works. Two bugs
-   found and fixed on the way: `cz bump` left `uv.lock` stale (fixed in #12,
-   `bump.yml` now relocks and amends before the tag push) and a deleted
-   prerelease tag left commitizen unable to bound the next changelog (fixed by
-   reverting the botched bump in #13).
-
-### README (active, before the stable release)
-
-The README should be good before `0.1.0` reaches PyPI, since `readme =
-"README.md"` becomes the PyPI long description. Structure is agreed: lean
-front-door, ~130 to 200 lines, `for-the-badge` style shields badges, near-zero
-emoji, ASCII diagrams and trees (no mermaid, because PyPI does not render it),
-HTML only for layout. Prose is neutral-dev, accessible to a non-expert without
-dropping the technical terms.
-
-Done: [`README.md`](README.md) written (from the v3 draft, demo GIF placed in Quickstart
-rather than Highlights, since the GIF shows the flow the Quickstart walks
-through), both drafts deleted, `scripts/check_ascii.py` exempts [`README.md`](README.md)
-via a `SKIP_FILES` set (Decisions log below records it), reference-level detail
-moved out to [`docs/concepts.md`](docs/concepts.md), and a logo added: `docs/assets/mdcompose-logo.svg`
-in the centered header (replacing the `# mdcompose` text heading), referenced
-by the same absolute `raw.githubusercontent.com/.../main/...` URL as the demo
-GIF so it also renders on PyPI, and `docs/assets/**` excluded from the sdist in
-`pyproject.toml` (`[tool.hatch.build]`, verified with a real `uv build`; the
-wheel was never affected, it already only packages `mdcompose`). Badges use
-`style=for-the-badge`, not `flat-square`. Not yet committed.
-
-Still to finish:
-
-- **Record the demo GIF. Done.** `docs/assets/mdcompose-demo.gif` (18s, 46
-  frames, ~95 KB), README Quickstart wired to it. Recorded in WSL against the
-  real published PyPI package (0.1.3), not the dev checkout, in an isolated
-  scratch venv (`~/mdcompose-demo`, `MDCOMPOSE_CONFIG_DIR` scratch) so nothing
-  touched the repo's own `.venv` or real config. Tools: `bat` for file display,
-  `asciinema rec --cols 100 --rows 34` for capture, `agg` for the GIF
-  (installed with `cargo install --locked --git https://github.com/asciinema/agg`;
-  the `agg` crate on crates.io is an unrelated library and has no binary).
-  Shot: `mdcompose init` against a small seeded snippet library (5 snippets
-  across 3 categories), driving the real `questionary` checkbox picker live
-  (arrow/space/enter), then `bat` on the composed `AGENTS.md`/`CLAUDE.md` and
-  a closing `mdcompose doctor`.
-
-  Non-obvious part: driving the picker interactively needs a real pty
-  (`pexpect.spawn`), but a bare pty never answers `prompt_toolkit`'s
-  cursor-position (CPR) query, so the picker silently falls back to a
-  degraded, non-live-redrawing render -- every keystroke lands but nothing
-  visibly updates until the final "done (N selections)" line. Fix: a
-  background thread reads the child's pty directly (`os.read` on
-  `child.child_fd`, not `child.expect`, since only one reader can drain the
-  fd), mirrors every byte to stdout for asciinema to capture, and answers any
-  `\x1b[6n` it sees with a plausible `\x1b[<row>;1R` immediately. That alone
-  is what turns the recording from a slideshow into a real live checkbox
-  animation. Command typing is simulated the same way for the non-interactive
-  steps: print the prompt and each character with a short `sleep` between
-  them rather than pasting the whole line, since agg only ever renders a new
-  GIF frame on a real screen change, and a pasted line is one change instead
-  of many.
-
-  Driver script and seed snippets were scratch-only (`temp/`, gitignored via
-  `.git/info/exclude`'s `AGENTS.md`/`CLAUDE.md` patterns), not committed.
-- **Verify the badges resolve** once `0.1.0` is on PyPI (the PyPI, pyversions,
-  and scorecard badges 404 or show "unknown" until then).
-
-### After the README, resume the release
-
-4. Done. `bump.yml` ran with channel `stable`, `0.1.0a0` -> `0.1.0`, `v0.1.0`
-   tagged, the `pypi` environment approved. `v0.1.0` is live on PyPI and the
-   first GitHub Release exists with the SBOM and attestation assets attached.
-5. Done. [`CHANGELOG.md`](CHANGELOG.md)'s `## v0.1.0` entry replaced cz's thin
-   auto body ("break the cli and command import cycle", "relock uv.lock",
-   etc., none of which belong in a *user-facing* changelog) with "Initial
-   public release." plus the full `### Added` command list restored verbatim
-   from the old `[Unreleased]` section (recovered from commit `2252051`, since
-   the alpha bump had already consumed it) and the `### Security`
-   SLSA-provenance note. cz's `### Changed` and `### Fixed` sections dropped:
-   there is no prior release to change from.
-
-Also done in this pass, discovered from the live PyPI listing: the
-`pypi/pyversions` badge showed a bare "Python 3" rather than the real
-supported range, because shields.io reads PyPI's classifiers, not
-`requires-python`, and only a bare `Programming Language :: Python :: 3` was
-listed. `pyproject.toml` now lists `3.11` through `3.14` individually,
-matching the CI matrix. This only takes effect on the *next* release; it does
-not retroactively fix the metadata already published for `0.1.0`.
-
-### After the first release
-
-6. **Post-release hardening. Done.** `Development Status` moved to
-   `4 - Beta` (the v1 feature set is complete and tested -- all 8 OpenSpec
-   changes shipped, 93%+ coverage, mutation-tested, hardening review done --
-   but pre-1.0 semver still allows a breaking change, so Beta fits better than
-   a Stable claim; also takes effect on the next release only), and
-   `platform.ONEDRIVE_HELP_URL` points at the real how-to-exclude video
-   (`https://www.youtube.com/watch?v=KRWvnMVXYGo`).
-7. **OpenSSF Best Practices passing badge. Done: 100% Passing.** Registered as
-   project 14614 (`https://www.bestpractices.dev/projects/14614`), homepage set
-   to the GitHub repo URL, every Passing-tier field across all six categories
-   (Basics, Change Control, Reporting, Quality, Security, Analysis) answered
-   and saved. Badge embedded in the README via shields.io's `cii/summary`
-   endpoint (the only way to get `for-the-badge` styling; bestpractices.dev's
-   own badge image does not support it). Scorecard's CII-Best-Practices check
-   reads this through the API: 0 to 5, and updates on its own schedule, not
-   immediately. Silver and gold are not attainable for a solo-maintained
-   project, so passing was the target and it is met. See [`docs/scorecard.md`](docs/scorecard.md).
-8. **Scorecard code-scanning alerts: left open, not dismissed.** Code-Review,
-   Branch-Protection, and Fuzzing are solo-maintainer structural (see
-   [`docs/scorecard.md`](docs/scorecard.md), Accepted limitations), but "won't
-   fix" is a permanent label and the constraint is not permanent: it holds only
-   while there is one maintainer. Revisit once a second maintainer or a
-   collaborator with review rights joins, at which point Code-Review and
-   Branch-Protection stop being structural and Fuzzing can be reconsidered on
-   its own merits. Until then the alerts stay open in the Security tab rather
-   than dismissed. Maintained and CII-Best-Practices self-resolve separately.
-
-### Not planned
-
-9. **Fuzzing.** Left at 0. Scorecard does not detect Python Hypothesis, and an
-   Atheris plus ClusterFuzzLite setup is out of proportion to the risk for two
-   small parsers. Revisit only if the parser surface grows.
+- **OpenSSF Scorecard: Maintained check.** Scores 0 regardless of activity
+  until the repository passes 90 days old; it was created 2026-09-09, so this
+  clears around 2026-12-08. Nothing to do before then; revisit only to
+  confirm the score actually moved once that date passes.
+- **OpenSSF Scorecard: code-scanning alerts left open, not dismissed.**
+  Code-Review, Branch-Protection, and Fuzzing are solo-maintainer structural
+  limits (see [`docs/scorecard.md`](docs/scorecard.md), Accepted
+  limitations), but "won't fix" is not a permanent label here -- the
+  constraint holds only while there is one maintainer. Revisit once a second
+  maintainer or a collaborator with review rights joins: Code-Review and
+  Branch-Protection stop being structural at that point, and Fuzzing can be
+  reconsidered on its own merits.
+- **Fuzzing.** Left at 0 on purpose, not a gap to close now. Scorecard does
+  not detect Python Hypothesis (already used in the parser tests), and an
+  Atheris plus ClusterFuzzLite setup is out of proportion to the risk for two
+  small parsers. Revisit only if the parser surface grows materially.
+- **Add each new Python to the CI matrix by hand** when its final release
+  ships (annual cadence, not worth automating). 3.15 is deferred until then
+  (was rc2 on 2026-09-13, final due October 2026): a prerelease-specific
+  version string in `uv sync --python` is not worth carrying for a few weeks
+  of coverage the final release gets for free.
 
 ## Where things live
 
@@ -229,6 +113,33 @@ not retroactively fix the metadata already published for `0.1.0`.
   `version_provider = "scm"` handshake with commitizen) than a solo project
   bumping one line per release needs. Decision closed.
 
+- **Demo GIF recording needs a pty CPR trick, if it is ever re-recorded.**
+  `questionary`'s picker sits on `prompt_toolkit`, which probes the terminal
+  with a cursor-position request (`\x1b[6n`) before it will live-redraw. A
+  bare `pexpect.spawn` pty never answers that probe, so the picker silently
+  degrades to a static, non-redrawing render -- every keystroke lands, but
+  nothing visibly updates until the final "done (N selections)" line. Fix
+  used for `docs/assets/mdcompose-demo.gif`: a background thread reads the
+  child pty directly (`os.read` on `child.child_fd`, not `child.expect`,
+  since only one reader can drain the fd), mirrors every byte to stdout for
+  `asciinema` to capture, and answers any `\x1b[6n` it sees with a plausible
+  `\x1b[<row>;1R` immediately. That alone is what makes the recording a real
+  live checkbox animation instead of a slideshow. The driver script and seed
+  snippets were scratch-only (`temp/`), never committed, so this needs
+  redoing from scratch next time.
+- **PyPI's `pyversions` badge reads classifiers, not `requires-python`.**
+  `pyproject.toml` had only a bare `Programming Language :: Python :: 3`
+  classifier, so shields.io rendered the badge as "Python 3" instead of the
+  real supported range. Fixed by listing `3.11` through `3.14` individually
+  as classifiers, matching the CI matrix. Takes effect only on the next
+  release; already-published metadata for a prior version is not
+  retroactively fixed.
+- **OpenSSF Best Practices registration is project 14614.**
+  `https://www.bestpractices.dev/projects/14614`, homepage set to the GitHub
+  repo URL, Passing tier across all six categories. Needed again only if the
+  self-assessment has to be revisited (a criterion changes, or silver/gold
+  becomes reachable with a second maintainer).
+
 ## Reference docs
 
 - [`docs/versioning-explained.md`](docs/versioning-explained.md) - how a number becomes `0.3.2` vs `0.4.0` vs
@@ -262,9 +173,10 @@ free for public or personal-account use:
 - OpenSSF Scorecard - free
 - CodeQL - free for public repos
 
-Excluded because metered or paid: Codecov, CodSpeed (CodSpeed has a free OSS
-tier and is kept dormant, see below). Coverage is gated in-repo with
-`coverage --fail-under` and uploaded as an artifact, never sent to a service.
+Excluded because metered or paid: Codecov. CodSpeed is wired (free OSS tier,
+connected at codspeed.io, see the `benchmarks` job below); Coverage itself is
+gated in-repo with `coverage --fail-under` and uploaded as an artifact, never
+sent to a service.
 
 One thing to confirm before wiring: `gitleaks/gitleaks-action` needs a free
 `GITLEAKS_LICENSE` key **only when the repo owner is a GitHub organisation**. If
@@ -335,9 +247,12 @@ tag through.
 
 - all-contributors config - ENABLE WHEN the first outside contributor lands.
 
-The `benchmarks` job in `ci.yml` was in this list; it is now uncommented and
-pinned. It runs on every push and PR but is not in `all-green`'s needs list, so
-it cannot block a merge even before codspeed.io is connected. See item 6 above.
+The `benchmarks` job in `ci.yml` was in this list; it is now uncommented,
+pinned, and connected at codspeed.io (run `34781861376`, commit `4b43aa5`,
+2026-09-13, uploaded successfully after an earlier run failed with a
+`401 Unauthorized` before the account-side connection existed). It runs on
+every push and PR but is not in `all-green`'s needs list, so it cannot block a
+merge.
 
 (`mutation.yml` is not dormant - it ships active on a weekly cron, non-blocking.)
 
@@ -380,7 +295,7 @@ alerts + security updates and private vulnerability reporting. Allow the
 
 ### Explicitly not in the pipeline
 
-Codecov / CodSpeed / any metered service (cost); git-cliff / towncrier
+Codecov / any other metered service (cost); git-cliff / towncrier
 (commitizen writes the changelog); release-please / python-semantic-release
 (rejected, philosophy C is the model); a triage bot (issue volume); hatch-vcs /
 `hatch version` / setuptools-scm (no version-derivation layer; `cz bump` writes
@@ -419,60 +334,19 @@ but because it is the active brand of an existing company (ContextSmith Inc.,
 B2B customer-intelligence SaaS, founded 2015, Sunnyvale). Fine for purely
 personal unpublished use, never for anything released.
 
-## Repository and release setup (needs the repo)
+## Repository and release setup
 
-Plan and rationale: [`docs/publishing.md`](docs/publishing.md). In-repo artifacts (`release.yml`,
-[`CHANGELOG.md`](CHANGELOG.md), `renovate.json`, `codeql.yml`, `scorecard.yml`,
-`python-eol.yml`, workflow `permissions`) are all in place; the CI/CD pipeline
-section is the reference. What is left is account-side, roughly in order.
+Done, 2026-09-10. Plan and rationale: [`docs/publishing.md`](docs/publishing.md).
+Repo public, ruleset active, `RELEASE_TOKEN` and both Actions environments
+exist, both trusted publishers registered, `pre-commit.ci` enabled. Nothing
+open here; live remaining work is in `Next` at the top of this file.
 
-Status, 2026-09-10: every account-side item in this list is done. The repo is
-public, the ruleset is active, `RELEASE_TOKEN` and both Actions environments
-exist, both trusted publishers are registered, and `pre-commit.ci` is enabled.
-The checkboxes below are kept for the record and are not re-ticked here. The
-live remaining work is in the `Next` section at the top of this file.
+## Roadmap (later, deferred)
 
-- [ ] Immediately before making the repo public: run `trufflehog git file://.
-  --only-verified` over the full local history, confirm clean. One time, local,
-  never a hook or a job.
-- [ ] Create `github.com/Rovetown/mdcompose` and push. Enable private
-  vulnerability reporting (the CODE_OF_CONDUCT contact points at it), Dependabot
-  alerts, and Dependabot security updates.
-- [ ] Confirm whether `Rovetown` is a personal account or an organisation: an
-  organisation needs a free `GITLEAKS_LICENSE` key for `gitleaks-action`, a
-  personal account does not.
-- [ ] Branch protection on `main`: require `all-green`, `supply chain / *`, and
-  `CodeQL`; require one review; require the branch up to date; require linear
-  history; block force-push. Allow the `bump.yml` token identity to bypass the
-  push restriction.
-- [ ] Create a fine-grained PAT (or GitHub App token) with `contents: write`,
-  store as the `RELEASE_TOKEN` secret; `bump.yml` uses it so the tag push
-  triggers `release.yml` and the bump commit clears branch protection.
-- [ ] Register a PyPI pending publisher for `mdcompose` (owner `Rovetown`,
-  repo `mdcompose`, workflow `release.yml`, environment `pypi`), and the same
-  on TestPyPI.
-- [ ] Add GitHub Actions environments `pypi` (required reviewer) and `testpypi`.
-- [ ] Enable `pre-commit.ci` on the repo and delete the `hooks` job from
-  `ci.yml` (run one, not both).
-
-Post-repo, at the release that earns it:
-
-- [ ] Add a new Python to the CI matrix by hand when its first release
-  candidate lands (annual, not worth a regex manager). 3.15 is at rc2
-  (2026-09-13) with final due October 2026: deferred rather than added now,
-  since `uv sync --python 3.15` in the matrix needs a prerelease-specific
-  version string until the final ships, for a few weeks of coverage that the
-  final release gets for free.
-- [x] `benchmarks` job in `ci.yml`. Done: connected at codspeed.io. Run
-  34781861376 (commit `4b43aa5`, 2026-09-13) uploaded successfully ("Linked
-  repository: Rovetown/mdcompose"), after an earlier run (34751402057) failed
-  upload with `401 Unauthorized` before the account-side connection existed.
-- [ ] Optional: write up the OneDrive warning in [`docs/core-contract.md`](docs/core-contract.md) if the
-  project keeps that discipline post-v1. Implemented directly for now.
-
-## Roadmap (later)
-
-Everything here is a later, larger effort. The codebase-wide quality pass is
+This section is TODO the same as `Next`, just longer-horizon: each item below
+is real backlog, not idle brainstorming, and stays here until it is either
+scoped into an OpenSpec change or explicitly dropped. The codebase-wide
+quality pass is
 done: strict typing enforced in CI, a ratcheting coverage floor with its own
 job, a benchmark suite with a recorded baseline, the file-I/O hardening review
 and parser fuzzing. `platform.py` and the interactive questionary pickers in
@@ -565,10 +439,6 @@ own library one at a time from inside the TUI.
 ### Standalone binary distribution (zero install)
 
 - [ ] Once behavior and file formats are stable, evaluate a zero-install path so end users need no Python. Candidates are PyInstaller or Nuitka, both trading binary size for no runtime dependency. If a port lands in Go or Rust, prefer shipping the binary from that instead: smaller static binaries, better cross-compilation, and a natural fit for Homebrew, Scoop, WinGet or an install script.
-
-### Final naming verification before public release
-
-- [ ] `mdcompose` was checked by search only. Before claiming it, run the exact checks: confirm `https://pypi.org/project/mdcompose/` returns 404, confirm `npm view mdcompose` errors, and register the GitHub repository before someone else does.
 
 ### Competitive landscape follow-up
 
