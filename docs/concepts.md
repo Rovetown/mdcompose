@@ -61,6 +61,8 @@ The frontmatter is regenerated from the library on every run, even when only the
 Deselecting a skill deletes its file outright, and its now-empty `.claude/skills/<id>/` directory with it, rather than leaving an empty block the way AGENTS.md would: an empty `SKILL.md` means nothing to a skill-loading agent.
 An empty or unconfigured skill library never blocks `init`, and the reverse holds too -- an empty snippet library does not stop skills from composing.
 
+The skill library is managed the same way the snippet library is, not only by hand-editing files: `skill list`, `skill edit`, `skill remove`, and `skill adopt` mirror `snippet list`/`snippet edit`/`snippet remove`/`snippet adopt` command-for-command, including `skill adopt` pulling the skills embedded in a cloned project's manifest into your local skill library, with the same explicit, never-automatic collision handling.
+
 ## Drift detection: normalization and hashing
 
 A managed block's hash has to mean the same thing on Windows, under WSL, and on Linux, or a committed lock file could never be trusted across a team.

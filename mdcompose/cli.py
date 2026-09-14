@@ -24,6 +24,7 @@ from mdcompose.commands import (
     eject_cmd,
     import_cmd,
     init_cmd,
+    skill_cmd,
     snippet_cmd,
     target_cmd,
 )
@@ -84,6 +85,7 @@ def main(
 
 
 app.add_typer(snippet_cmd.app, name="snippet")
+app.add_typer(skill_cmd.app, name="skill")
 app.add_typer(config_cmd.app, name="config")
 app.add_typer(target_cmd.app, name="target")
 init_cmd.register(app)

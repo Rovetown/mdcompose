@@ -935,6 +935,11 @@ No skill is shipped, generated, or seeded.
 An empty skill library, or one that was never configured, never blocks `init`: AGENTS.md and CLAUDE.md compose exactly as they would without this feature.
 The reverse holds too: an empty snippet library does not stop skills from composing.
 
+### 22.4 The skill commands
+
+`skill list`, `skill edit`, `skill remove`, and `skill adopt` mirror the snippet commands (section 13) exactly, over the skill library instead: same filtering, same editor and non-interactive editing path, same confirm-before-delete, same adopt-from-manifest collision handling with the same keep/overwrite choice and the same normalization-aware identical-content check.
+Adoption reads the manifest's `skills` list (see 9.2, 9.3) the same way `snippet adopt` reads `snippets`, and is exactly as explicit: no other operation ever writes into the skill library, and a manifest with an empty `skills` list is reported as embedding nothing rather than treated as an error or as "no manifest."
+
 ## 23. Skill composition
 
 Each skill selected in a target directory is composed into its own file at `.claude/skills/<id>/SKILL.md`, never blended into a shared block the way snippet bodies are.
@@ -971,4 +976,4 @@ Composing a skill from a manifest this machine did not write (a fresh clone) fol
 ## Not yet specified
 
 Nothing.
-Every planned behavior for v1 is implemented and described above: `doctor`, `init` and `init --global`, `snippet list`, `snippet edit`, `snippet remove`, `snippet adopt`, `import`, `convert`, `config show`, `config set`, `config unset`, `config edit`, `eject` and `eject --global`, `target add`, `target list`, `target remove`, and skill composition as part of `init` (sections 22-23).
+Every planned behavior for v1 is implemented and described above: `doctor`, `init` and `init --global`, `snippet list`, `snippet edit`, `snippet remove`, `snippet adopt`, `skill list`, `skill edit`, `skill remove`, `skill adopt`, `import`, `convert`, `config show`, `config set`, `config unset`, `config edit`, `eject` and `eject --global`, `target add`, `target list`, `target remove`, and skill composition as part of `init` (sections 22-23).

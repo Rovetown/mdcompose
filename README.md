@@ -115,6 +115,10 @@ mdcompose snippet list         the snippets in your library
 mdcompose snippet edit <id>    open one in your editor
 mdcompose snippet remove <id>  delete one
 mdcompose snippet adopt        save a project's embedded snippets to your library
+mdcompose skill list           the skills in your skill library
+mdcompose skill edit <id>      open one in your editor
+mdcompose skill remove <id>    delete one
+mdcompose skill adopt          save a project's embedded skills to your skill library
 mdcompose import <file>        pull sections out of an existing CLAUDE.md or AGENTS.md
 mdcompose convert <src> <dst>  move content between this project's AGENTS.md and CLAUDE.md
 mdcompose eject                stop managing a directory: remove markers, delete the lock

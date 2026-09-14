@@ -353,13 +353,16 @@ and parser fuzzing. `platform.py` and the interactive questionary pickers in
 `init` and `import` are the accepted remaining coverage gap; their flag paths
 are fully covered.
 
-### Agent skill composition follow-ups (base feature shipped)
+### Agent skill composition follow-ups (base feature and command group shipped)
 
 Composing a project's skill library into `.claude/skills/<id>/SKILL.md` the
-same way AGENTS.md/CLAUDE.md are composed is done: OpenSpec change
-`agent-skill-composition`, reusing the managed-block-and-manifest core rather
-than forking it, per the standing bar for this Roadmap section. Two pieces
-were deliberately cut from that change and are the real remaining backlog:
+same way AGENTS.md/CLAUDE.md are composed is done (OpenSpec change
+`agent-skill-composition`), and so is managing the skill library itself:
+`skill list`, `skill edit`, `skill remove`, `skill adopt` (OpenSpec change
+`skill-commands`), mirroring `mdcompose snippet` command-for-command. Both
+reused the managed-block-and-manifest core rather than forking it, per the
+standing bar for this Roadmap section. One piece was deliberately cut from
+the base change and is the real remaining backlog:
 
 - [ ] A skill bundled with an accompanying script. The skill library and
   `mdcompose.lock` model shipped is single-file-per-item throughout, the same
@@ -367,10 +370,6 @@ were deliberately cut from that change and are the real remaining backlog:
   library entry, which is a real extension of the "library holds nothing but
   `.md` files" invariant and deserves its own proposal rather than folding
   into the base change.
-- [ ] A `mdcompose skill` command group (list/edit/remove/adopt), mirroring
-  `mdcompose snippet`. Not built: the skill library is hand-editable exactly
-  like the snippet library is, so this is convenience, not a gap in what can
-  be done, and can follow once the composition path has seen real use.
 
 ### Third-party integrations
 
