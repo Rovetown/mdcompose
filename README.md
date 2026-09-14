@@ -17,8 +17,7 @@
 Most repositories need the same handful of instructions for AI coding agents: how commits are written, which test command to run, which files not to touch.
 mdcompose keeps those as small snippets in one place and builds each project's `AGENTS.md` and `CLAUDE.md` from the ones you pick, so you stop copying the same paragraphs between repositories.
 
-> `mdcompose` composes Markdown.
-> It is unrelated to Docker Compose; the shared `-compose` suffix is a coincidence.
+> `mdcompose` composes Markdown. It is unrelated to Docker Compose.
 
 ## Highlights
 
