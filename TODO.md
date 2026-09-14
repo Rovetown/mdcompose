@@ -353,28 +353,24 @@ and parser fuzzing. `platform.py` and the interactive questionary pickers in
 `init` and `import` are the accepted remaining coverage gap; their flag paths
 are fully covered.
 
-### Agent skill composition (Claude Code Skills and equivalents)
+### Agent skill composition follow-ups (base feature shipped)
 
-Not scoped. Raised during the README rewrite as a marketing point worth
-having a real backing plan for, not yet an OpenSpec change.
+Composing a project's skill library into `.claude/skills/<id>/SKILL.md` the
+same way AGENTS.md/CLAUDE.md are composed is done: OpenSpec change
+`agent-skill-composition`, reusing the managed-block-and-manifest core rather
+than forking it, per the standing bar for this Roadmap section. Two pieces
+were deliberately cut from that change and are the real remaining backlog:
 
-- [ ] Explore composing a project's agent-skill files the same way AGENTS.md
-  and CLAUDE.md are composed today: a personal library of reusable skills,
-  picked per project instead of an agent loading every skill unconditionally.
-  A skill (a `SKILL.md`-shaped file: frontmatter plus a body, occasionally a
-  script alongside it) is already close enough to a snippet in shape that the
-  existing managed-block-and-manifest machinery may extend to it directly
-  rather than needing a second mechanism.
-- [ ] The actual argument for doing this, not just the organizational one:
-  every skill an agent does not need loaded for a given project is context it
-  never has to spend, so a curated per-project skill selection is a
-  token-efficiency win. That is the pitch in the README and
-  [`docs/concepts.md`](docs/concepts.md); it has to survive contact with a real design before it
-  becomes more than a pitch.
-- [ ] Revisit once v1 (AGENTS.md/CLAUDE.md composition) is stable. A second
-  composed-file family is exactly the kind of expansion that has to prove it
-  reuses the existing core rather than forking it, the standing bar for
-  everything in this Roadmap section.
+- [ ] A skill bundled with an accompanying script. The skill library and
+  `mdcompose.lock` model shipped is single-file-per-item throughout, the same
+  as the snippet library; a script-bearing skill needs a directory-shaped
+  library entry, which is a real extension of the "library holds nothing but
+  `.md` files" invariant and deserves its own proposal rather than folding
+  into the base change.
+- [ ] A `mdcompose skill` command group (list/edit/remove/adopt), mirroring
+  `mdcompose snippet`. Not built: the skill library is hand-editable exactly
+  like the snippet library is, so this is convenience, not a gap in what can
+  be done, and can follow once the composition path has seen real use.
 
 ### Third-party integrations
 

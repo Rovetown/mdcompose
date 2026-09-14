@@ -28,8 +28,7 @@ mdcompose keeps those as small snippets in one place and builds each project's `
 - **A committed lockfile.** `mdcompose.lock` embeds each snippet's content, so a clone or fork reproduces the same files with an empty library.
 - **Correct paths on Windows, WSL, and Linux**, including a warning when a managed file sits inside a OneDrive-synced folder.
 - **No install required.** `uvx mdcompose doctor` or `pipx run mdcompose doctor` run the real thing in a throwaway environment -- try it, or use it in a one-off script, without adding anything to your machine.
-- **Skills cost tokens too, and that's next (planned).** Every skill an agent does not need loaded for a project is context spent before it has done any work.
-  A skill file -- frontmatter, a body, sometimes a script -- is already snippet-shaped, so curating which skills a project loads, the same way AGENTS.md and CLAUDE.md are curated today, is the natural next composition target: real token savings, not just tidiness.
+- **Skills cost tokens too, so they're composed the same way.** A second, independent library curates which Claude Code Skills a project loads into `.claude/skills/`, so an agent stops paying context for skills a given project never needed.
   See [docs/concepts.md](https://github.com/Rovetown/mdcompose/blob/main/docs/concepts.md).
 
 It makes no network requests and collects no telemetry.
@@ -187,7 +186,7 @@ A few projects cover the same idea of a personal snippet library composed per pr
 What mdcompose does that they do not: import-versus-copy tied to Claude Code's real `@import`; drift detection by hashing one owned block; a committed lock with embedded content so a fork works without the author's library; and real Windows, WSL, and mounted-drive path correctness.
 It deliberately does no format translation: a target receives Markdown, not Cursor rules or Copilot instructions.
 
-**None of them go past agent instructions -- mdcompose plans to.** A skill file is markdown plus optional scripts, same as a snippet; composing a curated skill selection per project the way AGENTS.md and CLAUDE.md are composed today means an agent stops paying context for skills a given project never needed loaded in the first place.
+**None of them go past agent instructions -- mdcompose does.** A skill file is markdown plus frontmatter, same as a snippet; a curated skill selection is composed per project into `.claude/skills/` the same way AGENTS.md and CLAUDE.md are, so an agent stops paying context for skills a given project never needed loaded in the first place.
 
 See [docs/concepts.md](https://github.com/Rovetown/mdcompose/blob/main/docs/concepts.md) for the fuller case for each point.
 
