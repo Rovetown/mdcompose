@@ -376,6 +376,10 @@ having a real backing plan for, not yet an OpenSpec change.
   reuses the existing core rather than forking it, the standing bar for
   everything in this Roadmap section.
 
+### Third-party integrations
+
+- [ ] Research and, where practical, build integrations that let a user manage their content and snippet library without leaving their usual environment. Candidates are a VS Code extension or a JetBrains plugin; the TUI is tracked separately below. Before building anything new, evaluate whether extending an existing tool in this space is a better use of effort than duplicating config-sync mechanics that are already solved, so the focus stays on the snippet library and composition workflow that is not well covered elsewhere.
+
 ### TUI (terminal user interface)
 
 Deferred branch. Not needed to make the CLI read well, which it already does;
@@ -427,10 +431,6 @@ own library one at a time from inside the TUI.
   whole source repository.
 - [ ] Revisit once the TUI itself exists, since this is an additional TUI-only
   caller of the library machinery, not a reason to build the TUI sooner.
-
-### Third-party integrations
-
-- [ ] Research and, where practical, build integrations that let a user manage their content and snippet library without leaving their usual environment. Candidates are a VS Code extension or a JetBrains plugin; the TUI is tracked separately above. Before building anything new, evaluate whether extending an existing tool in this space is a better use of effort than duplicating config-sync mechanics that are already solved, so the focus stays on the snippet library and composition workflow that is not well covered elsewhere.
 
 ### Additional language implementations
 
