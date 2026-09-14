@@ -3,6 +3,12 @@
 All notable changes to mdcompose are recorded here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v0.2.1 (2026-09-14)
+
+### Added
+
+- add mdcompose skill command group
+
 ## v0.2.0 (2026-09-14)
 
 ### Added
