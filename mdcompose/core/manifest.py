@@ -29,7 +29,7 @@ from mdcompose.core.config import Mode
 from mdcompose.core.exit_codes import AttentionError
 
 MANIFEST_FILENAME = "mdcompose.lock"
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 AGENTS_MD_KEY = "agents_md"
 CLAUDE_MD_KEY = "claude_md"
@@ -85,12 +85,16 @@ class SkillEntry:
 
     Shaped like ``SnippetEntry`` but with no ``applies_to``: a skill is never
     split between AGENTS.md and CLAUDE.md, so there is nothing for that field
-    to mean here.
+    to mean here. ``files`` embeds a directory-shaped skill's accompanying
+    files, keyed by their path relative to the skill's own directory; it is
+    empty for the common, file-shaped skill, where ``content`` alone is
+    enough for a clone to reproduce the skill with no skill library at all.
     """
 
     id: str
     position: int
     content: str
+    files: Mapping[str, str] = field(default_factory=dict)
 
 
 @dataclass(frozen=True, slots=True)
@@ -272,7 +276,24 @@ def _as_skill(item: object, index: int, path: Path) -> SkillEntry:
         id=identifier,
         position=index if position is None else position,
         content=content,
+        files=_as_skill_files(item, identifier, path),
     )
+
+
+def _as_skill_files(item: Mapping[str, object], skill_id: str, path: Path) -> Mapping[str, str]:
+    if "files" not in item or item["files"] is None:
+        return {}
+    value = item["files"]
+    if not isinstance(value, dict):
+        raise AttentionError(f"{path}: skill '{skill_id}': 'files' must be a JSON object")
+    result: dict[str, str] = {}
+    for relative, content in value.items():
+        if not isinstance(relative, str) or not isinstance(content, str):
+            raise AttentionError(
+                f"{path}: skill '{skill_id}': 'files' must map relative paths to strings"
+            )
+        result[relative] = content
+    return result
 
 
 def _as_files(raw: Mapping[str, object], path: Path) -> Mapping[str, FileEntry]:
@@ -365,11 +386,17 @@ def _drift_for(key: str, entry: FileEntry, project_root: Path) -> FileDrift:
     if not files.path_exists(path):
         return FileDrift(key=key, path=path, status=MISSING)
 
+    block_id = entry.block_id if entry.block_id is not None else BLOCK_ID_BY_KEY.get(key)
+    if entry.block_id is None and key not in BLOCK_ID_BY_KEY:
+        # No managed block is expected here at all: this is a skill's
+        # accompanying file, whole-file hashed rather than scoped to a block.
+        # See skill-composition's drift requirement.
+        return _whole_file_drift(key, entry, path)
+
     result = managed_block.read_blocks(path)
     if result.problem is not None:
         return FileDrift(key=key, path=path, status=MALFORMED, detail=result.problem.message)
 
-    block_id = entry.block_id if entry.block_id is not None else BLOCK_ID_BY_KEY.get(key)
     block = None if block_id is None else result.find(block_id)
     if block is None:
         return FileDrift(
@@ -382,6 +409,15 @@ def _drift_for(key: str, entry: FileEntry, project_root: Path) -> FileDrift:
     if block.content_hash == entry.managed_block_hash:
         return FileDrift(key=key, path=path, status=CLEAN)
     return FileDrift(key=key, path=path, status=DRIFTED)
+
+
+def _whole_file_drift(key: str, entry: FileEntry, path: Path) -> FileDrift:
+    """Drift for a file with no managed block: the whole file is mdcompose's."""
+    if path.is_dir():
+        return FileDrift(key=key, path=path, status=MISSING)
+    current_hash = files.hash_content(files.read_text(path))
+    status = CLEAN if current_hash == entry.managed_block_hash else DRIFTED
+    return FileDrift(key=key, path=path, status=status)
 
 
 def build(
@@ -429,19 +465,23 @@ def to_document(manifest: Manifest) -> dict[str, object]:
             }
             for entry in manifest.snippets_in_order()
         ],
-        "skills": [
-            {
-                "id": entry.id,
-                "position": entry.position,
-                "content": entry.content,
-            }
-            for entry in manifest.skills_in_order()
-        ],
+        "skills": [_skill_entry_document(entry) for entry in manifest.skills_in_order()],
         "files": {
             key: _file_entry_document(entry) for key, entry in sorted(manifest.files.items())
         },
     }
     document.update(manifest.extra)
+    return document
+
+
+def _skill_entry_document(entry: SkillEntry) -> dict[str, object]:
+    document: dict[str, object] = {
+        "id": entry.id,
+        "position": entry.position,
+        "content": entry.content,
+    }
+    if entry.files:
+        document["files"] = dict(entry.files)
     return document
 
 

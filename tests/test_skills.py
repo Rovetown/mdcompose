@@ -240,3 +240,117 @@ def test_a_skill_with_crlf_reads_the_same(tmp_path: Path) -> None:
     skill = skills.read(path)
     assert skill.title == "Code review"
     assert skill.body == "Review for correctness first, style second.\n"
+
+
+def write_bundle(library: Path, skill_id: str, skill_md: str, **accompanying: str) -> Path:
+    directory = library / skill_id
+    directory.mkdir(parents=True, exist_ok=True)
+    (directory / skills.SKILL_MD_FILENAME).write_bytes(skill_md.encode("utf-8"))
+    for relative, content in accompanying.items():
+        target = directory / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(content.encode("utf-8"))
+    return directory
+
+
+def test_a_bundle_skill_id_comes_from_the_directory_name(tmp_path: Path) -> None:
+    write_bundle(tmp_path, "lint-helper", BODY_ONLY)
+    skill = skills.read_bundle(tmp_path / "lint-helper")
+    assert skill.id == "lint-helper"
+    assert skill.is_bundle is True
+
+
+def test_a_bundle_skill_reads_its_accompanying_files(tmp_path: Path) -> None:
+    write_bundle(tmp_path, "lint-helper", FULL, **{"scripts/lint.py": "print('lint')\n"})
+    skill = skills.read_bundle(tmp_path / "lint-helper")
+    assert skill.title == "Code review"
+    assert skill.body == "Review for correctness first, style second.\n"
+    assert skill.files == {"scripts/lint.py": "print('lint')\n"}
+
+
+def test_a_directory_without_skill_md_is_not_a_skill(tmp_path: Path) -> None:
+    (tmp_path / "not-a-skill").mkdir()
+    (tmp_path / "not-a-skill" / "readme.txt").write_text("hi", encoding="utf-8")
+    write_skill(tmp_path, "real", BODY_ONLY)
+    assert [skill.id for skill in skills.load_library(tmp_path)] == ["real"]
+
+
+def test_load_library_reads_both_shapes(tmp_path: Path) -> None:
+    write_skill(tmp_path, "bare", BODY_ONLY)
+    write_bundle(tmp_path, "bundle", BODY_ONLY, **{"scripts/run.sh": "echo hi\n"})
+    found = {skill.id: skill.is_bundle for skill in skills.load_library(tmp_path)}
+    assert found == {"bare": False, "bundle": True}
+
+
+def test_both_shapes_for_the_same_id_is_refused(tmp_path: Path) -> None:
+    write_skill(tmp_path, "dup", BODY_ONLY)
+    write_bundle(tmp_path, "dup", BODY_ONLY)
+    with pytest.raises(AttentionError) as raised:
+        skills.load_library(tmp_path)
+    assert "dup" in str(raised.value)
+
+
+def test_writing_a_bundle_skill_creates_every_file(tmp_path: Path) -> None:
+    library = tmp_path / "library"
+    skill = skills.Skill(
+        id="lint-helper",
+        body="Body.\n",
+        is_bundle=True,
+        files={"scripts/lint.py": "print('lint')\n"},
+    )
+    skills.write(library, skill)
+    assert (library / "lint-helper" / "SKILL.md").read_text(encoding="utf-8") == "Body.\n"
+    assert (library / "lint-helper" / "scripts" / "lint.py").read_text(
+        encoding="utf-8"
+    ) == "print('lint')\n"
+
+
+def test_a_bundle_skill_round_trips_through_write_and_load(tmp_path: Path) -> None:
+    library = tmp_path / "library"
+    original = skills.Skill(
+        id="lint-helper",
+        body="Body.\n",
+        title="Lint helper",
+        is_bundle=True,
+        files={"scripts/lint.py": "print('lint')\n"},
+    )
+    skills.write(library, original)
+    reloaded = skills.find(skills.load_library(library), "lint-helper")
+    assert reloaded is not None
+    assert reloaded.body == original.body
+    assert reloaded.title == original.title
+    assert reloaded.files == original.files
+
+
+def test_writing_a_bundle_skill_through_a_symlinked_directory_is_refused(tmp_path: Path) -> None:
+    library = tmp_path / "library"
+    library.mkdir()
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    try:
+        (library / "planted").symlink_to(outside, target_is_directory=True)
+    except OSError:
+        pytest.skip("symlink creation not permitted here")
+
+    skill = skills.Skill(id="planted", body=BODY_ONLY, is_bundle=True)
+    with pytest.raises(AttentionError, match="symlink"):
+        skills.write(library, skill)
+
+
+def test_an_accompanying_file_past_the_size_limit_is_refused(tmp_path: Path) -> None:
+    directory = write_bundle(tmp_path, "big", BODY_ONLY)
+    oversized = directory / "scripts" / "huge.bin"
+    oversized.parent.mkdir(parents=True, exist_ok=True)
+    with oversized.open("wb") as handle:
+        handle.seek(files.MAX_READ_BYTES)
+        handle.write(b"0")
+    with pytest.raises(AttentionError, match=str(files.MAX_READ_BYTES)):
+        skills.read_bundle(directory)
+
+
+def test_an_accompanying_file_not_utf8_is_refused(tmp_path: Path) -> None:
+    directory = write_bundle(tmp_path, "bad-encoding", BODY_ONLY)
+    (directory / "scripts").mkdir()
+    (directory / "scripts" / "bad.py").write_bytes(b"\xff\xfe not utf-8")
+    with pytest.raises(AttentionError, match="UTF-8"):
+        skills.read_bundle(directory)

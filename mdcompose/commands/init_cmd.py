@@ -482,12 +482,22 @@ def _show_drift(output: OutputContext, target: init_ops.FileTarget | None) -> No
     """Show what is there against what would replace it."""
     if target is None:
         return
-    result = managed_block.read_blocks(target.path)
-    block = result.find(target.block_id)
     output.info("  currently:")
-    output.content_indented("" if block is None else block.content, empty="    (empty)")
+    output.content_indented(_current_content(target), empty="    (empty)")
     output.info("  would become:")
     output.content_indented(target.content, empty="    (empty)")
+
+
+def _current_content(target: init_ops.FileTarget) -> str:
+    """What is on disk now, at the granularity drift for this target compares.
+
+    An accompanying file has no managed block: the whole file is what is
+    being compared, so the whole file is what is shown.
+    """
+    if target.block_id is None:
+        return files.read_text(target.path)
+    block = managed_block.read_blocks(target.path).find(target.block_id)
+    return "" if block is None else block.content
 
 
 def _validated_drift_choice(candidate: str) -> init_ops.DriftChoice:

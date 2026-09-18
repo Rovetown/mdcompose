@@ -1,11 +1,14 @@
-"""The skill library: a flat directory of markdown files, one skill each.
+"""The skill library: a flat directory of skills, one entry each.
 
-Mirrors ``snippets.py`` deliberately. A skill is exactly as file-shaped as a
-snippet: one markdown file, YAML frontmatter then body, filename minus the
-extension as the id. The two libraries are kept separate (different directory,
-different config field) because a skill is not an AGENTS.md/CLAUDE.md snippet
-and composes into its own file rather than a shared block; see
-``skill_composition.py`` for that half.
+Mirrors ``snippets.py`` deliberately, with one extension a snippet does not
+need. A skill is usually as file-shaped as a snippet: one markdown file, YAML
+frontmatter then body, filename minus the extension as the id. It may
+instead be directory-shaped, `<id>/SKILL.md` plus one or more accompanying
+files (a script, a config) at other relative paths inside that directory,
+for a skill that needs more than a body to do its job. The two libraries are
+kept separate (different directory, different config field) because a skill
+is not an AGENTS.md/CLAUDE.md snippet and composes into its own file rather
+than a shared block; see ``skill_composition.py`` for that half.
 
 There is no ``applies_to`` and no ``order`` field here. ``applies_to`` exists
 for snippets because one selection is split across two files (AGENTS.md and
@@ -17,6 +20,7 @@ order to affect.
 
 from __future__ import annotations
 
+import dataclasses
 import re
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
@@ -28,6 +32,7 @@ from mdcompose.core import files
 from mdcompose.core.exit_codes import AttentionError
 
 SKILL_SUFFIX = ".md"
+SKILL_MD_FILENAME = "SKILL.md"
 
 _FRONTMATTER_FENCE = "---"
 _VALID_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
@@ -44,10 +49,17 @@ RESERVED_IDS = frozenset({"agents_md", "claude_md"})
 
 @dataclass(frozen=True, slots=True)
 class Skill:
-    """One skill: its id, its metadata, and its body.
+    """One skill: its id, its metadata, its body, and its accompanying files.
 
-    The id is derived from the filename and is never stored in the file, so
-    the two cannot drift apart. Renaming the file renames the skill.
+    The id is derived from the filename (or directory name, for a
+    directory-shaped skill) and is never stored in the file, so the two cannot
+    drift apart. Renaming the file or directory renames the skill.
+
+    ``is_bundle`` and ``files`` describe the directory shape: a skill bundled
+    with one or more accompanying files (a script, a config) alongside its
+    ``SKILL.md``. ``files`` maps each accompanying file's path, relative to
+    the skill's own directory, to its content. A file-shaped skill (the common
+    case) leaves both at their defaults.
     """
 
     id: str
@@ -58,6 +70,8 @@ class Skill:
     stack_signals: tuple[str, ...] = ()
     category: str | None = None
     path: Path | None = None
+    is_bundle: bool = False
+    files: Mapping[str, str] = field(default_factory=dict)
 
     @property
     def display_name(self) -> str:
@@ -77,13 +91,23 @@ def id_for(path: Path) -> str:
 
 
 def is_skill_file(path: Path) -> bool:
-    """Return whether an entry in the skill library is a skill.
+    """Return whether an entry in the skill library is a file-shaped skill.
 
     Anything that is not a regular markdown file is not a skill and is left
     entirely alone: a subdirectory, a symlink mdcompose did not create, a
     `.git` directory, a stray text file.
     """
     return path.is_file() and path.suffix == SKILL_SUFFIX
+
+
+def is_skill_bundle_dir(path: Path) -> bool:
+    """Return whether an entry in the skill library is a directory-shaped skill.
+
+    A directory counts as a skill only when it contains ``SKILL.md``. A
+    directory without one, such as `.git` or a stray subdirectory, is left
+    entirely alone, the same as any other unrecognized entry.
+    """
+    return path.is_dir() and (path / SKILL_MD_FILENAME).is_file()
 
 
 def validate_id(candidate: str) -> str:
@@ -173,27 +197,71 @@ def _as_str_list(metadata: Mapping[str, object], key: str, skill_id: str) -> tup
 
 
 def read(path: Path) -> Skill:
-    """Read and parse one skill file."""
+    """Read and parse one file-shaped skill."""
     return parse(files.read_text(path), id_for(path), path=path)
+
+
+def read_bundle(directory: Path) -> Skill:
+    """Read and parse one directory-shaped skill.
+
+    ``SKILL.md`` is read the same way a file-shaped skill is. Every other file
+    under the directory, at any depth, is an accompanying file, keyed by its
+    path relative to the directory.
+    """
+    skill_id = directory.name
+    skill_md = directory / SKILL_MD_FILENAME
+    main = parse(files.read_text(skill_md), skill_id, path=skill_md)
+    accompanying = {
+        path.relative_to(directory).as_posix(): files.read_text(path)
+        for path in _accompanying_files(directory)
+    }
+    return dataclasses.replace(main, is_bundle=True, files=accompanying)
+
+
+def _accompanying_files(directory: Path) -> tuple[Path, ...]:
+    """Every file under a bundle skill's directory except ``SKILL.md`` itself."""
+    skill_md = directory / SKILL_MD_FILENAME
+    return tuple(
+        sorted(path for path in directory.rglob("*") if path.is_file() and path != skill_md)
+    )
 
 
 def load_library(library: Path) -> tuple[Skill, ...]:
     """Read every skill in the library, sorted by id.
 
     An absent directory is an empty library, not an error, and is not
-    created. Entries that are not markdown files are skipped in silence.
+    created. A subdirectory counts as a skill only when it holds a
+    ``SKILL.md``; any other entry (a symlink, a stray file, an unrelated
+    directory) is skipped in silence. A file-shaped skill and a
+    directory-shaped skill sharing the same id is refused rather than one
+    silently winning.
     """
     if not files.path_exists(library) or not library.is_dir():
         return ()
+    entries = sorted(library.iterdir(), key=lambda item: item.name)
+    file_ids = {id_for(entry) for entry in entries if is_skill_file(entry)}
+    bundle_ids = {entry.name for entry in entries if is_skill_bundle_dir(entry)}
+    collision = sorted(file_ids & bundle_ids)
+    if collision:
+        raise AttentionError(
+            f"skill '{collision[0]}' exists both as a file and as a directory "
+            f"in {library.as_posix()}; remove one"
+        )
     return tuple(
-        read(path) for path in sorted(library.iterdir(), key=lambda item: item.name)
-        if is_skill_file(path)
+        read(entry) if is_skill_file(entry) else read_bundle(entry)
+        for entry in entries
+        if is_skill_file(entry) or is_skill_bundle_dir(entry)
     )
 
 
 def path_for(library: Path, skill_id: str) -> Path:
-    """Return where a skill with this id lives, without touching the disk."""
+    """Return where a file-shaped skill with this id lives, without touching disk."""
     return library / f"{validate_id(skill_id)}{SKILL_SUFFIX}"
+
+
+def bundle_dir_for(library: Path, skill_id: str) -> Path:
+    """Return where a directory-shaped skill with this id lives, without touching disk."""
+    return library / validate_id(skill_id)
 
 
 def find(skills: Iterable[Skill], skill_id: str) -> Skill | None:
@@ -246,15 +314,38 @@ def render(skill: Skill) -> str:
 def write(library: Path, skill: Skill) -> Path:
     """Write a skill into the library, creating the directory if needed.
 
-    The only thing mdcompose ever writes into the skill library is a skill
-    file. A symlink at the target is refused rather than followed.
+    A file-shaped skill writes one `.md` file. A directory-shaped skill
+    (``skill.is_bundle``) writes ``SKILL.md`` plus every accompanying file,
+    each at its recorded relative path under the skill's own directory. The
+    only thing mdcompose ever writes into the skill library is a skill's own
+    files. A symlink at any write target is refused rather than followed.
     """
+    if skill.is_bundle:
+        return _write_bundle(library, skill)
     target = path_for(library, skill.id)
     if target.is_symlink():
         raise AttentionError(f"{target}: refusing to write a skill through a symlink")
     target.parent.mkdir(parents=True, exist_ok=True)
     files.write_text(target, render(skill), line_ending=files.line_ending_for(target))
     return target
+
+
+def _write_bundle(library: Path, skill: Skill) -> Path:
+    directory = bundle_dir_for(library, skill.id)
+    if directory.is_symlink():
+        raise AttentionError(f"{directory}: refusing to write a skill through a symlink")
+    directory.mkdir(parents=True, exist_ok=True)
+    skill_md = directory / SKILL_MD_FILENAME
+    if skill_md.is_symlink():
+        raise AttentionError(f"{skill_md}: refusing to write a skill through a symlink")
+    files.write_text(skill_md, render(skill), line_ending=files.line_ending_for(skill_md))
+    for relative, content in skill.files.items():
+        target = directory / relative
+        if target.is_symlink():
+            raise AttentionError(f"{target}: refusing to write a skill through a symlink")
+        target.parent.mkdir(parents=True, exist_ok=True)
+        files.write_text(target, content, line_ending=files.line_ending_for(target))
+    return skill_md
 
 
 @dataclass(frozen=True, slots=True)
