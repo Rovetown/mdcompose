@@ -5,37 +5,26 @@ management CLI. Everything here is either open or a decision worth keeping.
 
 ## Next
 
-The codebase, the automation, and the account-side release setup are all done.
-The repo is live at `github.com/Rovetown/mdcompose`, `v0.1.3` is on PyPI, and
-the WSL demo recording did a clean-venv `pip install` against that real
-published package. What is left is a short list of items that are either
-genuinely still open or deliberately deferred to a future trigger (a date, a
-second maintainer, a badge cache catching up). The Scorecard reasoning behind
-the deferred items is in [`docs/scorecard.md`](docs/scorecard.md).
-
-Done: CodSpeed badge added to the README badge row, `style=for-the-badge`,
-placed next to the CI badge. Done: PyPI, Python-versions, and OpenSSF
-Scorecard badges confirmed rendering real values, not "unknown" or a
-broken-image placeholder.
+Everything genuinely open or deliberately deferred to a future trigger (a
+date, a second maintainer). Scorecard reasoning behind the deferred items is
+in [`docs/scorecard.md`](docs/scorecard.md).
 
 ### Deferred
 
 - **OpenSSF Scorecard: Maintained check.** Scores 0 regardless of activity
-  until the repository passes 90 days old; it was created 2026-09-09, so this
-  clears around 2026-12-08. Nothing to do before then; revisit only to
-  confirm the score actually moved once that date passes.
-- **OpenSSF Scorecard: code-scanning alerts left open, not dismissed.**
-  Code-Review, Branch-Protection, and Fuzzing are solo-maintainer structural
-  limits (see [`docs/scorecard.md`](docs/scorecard.md), Accepted
-  limitations), but "won't fix" is not a permanent label here -- the
-  constraint holds only while there is one maintainer. Revisit once a second
-  maintainer or a collaborator with review rights joins: Code-Review and
-  Branch-Protection stop being structural at that point, and Fuzzing can be
-  reconsidered on its own merits.
-- **Fuzzing.** Left at 0 on purpose, not a gap to close now. Scorecard does
-  not detect Python Hypothesis (already used in the parser tests), and an
-  Atheris plus ClusterFuzzLite setup is out of proportion to the risk for two
-  small parsers. Revisit only if the parser surface grows materially.
+  until the repository passes 90 days old; created 2026-09-09, clears around
+  2026-12-08. Nothing to do before then; revisit only to confirm the score
+  moved once that date passes.
+- **OpenSSF Scorecard: Code-Review, Branch-Protection, and Fuzzing left open, not dismissed.**
+  All three are solo-maintainer structural limits (see
+  [`docs/scorecard.md`](docs/scorecard.md), Accepted limitations), not a
+  permanent "won't fix": Code-Review and Branch-Protection stop being
+  structural once a second maintainer or a collaborator with review rights
+  joins, and Fuzzing can be reconsidered on its own merits then too. Fuzzing
+  specifically: Scorecard does not detect Python Hypothesis (already used in
+  the parser tests), and an Atheris plus ClusterFuzzLite setup is out of
+  proportion to the risk for two small parsers; revisit only if the parser
+  surface grows materially.
 - **Add each new Python to the CI matrix by hand** when its final release
   ships (annual cadence, not worth automating). 3.15 is deferred until then
   (was rc2 on 2026-09-13, final due October 2026): a prerelease-specific
@@ -63,48 +52,16 @@ broken-image placeholder.
   `pyproject.toml` carries `license = "MIT"` and `license-files = ["LICENSE"]`.
   A funding link (Ko-fi, GitHub Sponsors) is a project-content decision, not a
   license question, and is deferred at the maintainer's request.
-- **Manifest filename: `mdcompose.lock`, committed to git, and there is only one manifest.** This supersedes the earlier `.agentsmd.lock` decision and the two-file split that went with it. The original plan had a machine-local gitignored lock holding hashes plus a separate committed file holding the composition. That split existed because hashes looked machine-specific, and they are not: normalizing content before hashing makes a hash a pure function of content, identical on Windows, WSL, Linux, and macOS. Once that holds, both files carried the same information for the same audience, so merging them removed an entire capability, two commands, a precedence rule between the files, and a `.gitignore` prompt. The filename is visible rather than dotted because the file is reviewed in pull requests, and it is closer to `uv.lock` than to `package-lock.json` plus `package.json`: one file, committed, pinning resolved content. Worth noting in the README that this is the reverse of what an npm reader expects.
+- **Manifest filename: `mdcompose.lock`, committed to git, and there is only one manifest.** This supersedes the earlier `.agentsmd.lock` decision and the two-file split that went with it. The original plan had a machine-local gitignored lock holding hashes plus a separate committed file holding the composition. That split existed because hashes looked machine-specific, and they are not: normalizing content before hashing makes a hash a pure function of content, identical on Windows, WSL, Linux, and macOS. Once that holds, both files carried the same information for the same audience, so merging them removed an entire capability, two commands, a precedence rule between the files, and a `.gitignore` prompt. The filename is visible rather than dotted because the file is reviewed in pull requests, and it is closer to `uv.lock` than to `package-lock.json` plus `package.json`: one file, committed, pinning resolved content.
 - **`sync` retired rather than parked.** It was originally meant to re-apply an edited snippet without reselecting, and to run the drift check. Both found better homes: drift detection is one shared operation that `doctor` reports and `init` acts on before writing, and re-applying is what re-running `init` already does when it reopens the picker with recorded selections. A separate command would have been a third caller of the same machinery with no unique job.
 - **`target` built rather than left parked.** The question was whether anyone really runs two tools with separate global AGENTS.md locations. They do, and without it such a user hand-copies the same content between directories, which is the chore the tool exists to remove. The `target` command group registers a location by hand and projects the canonical global AGENTS.md into it. Projection is always copy mode, because no other tool resolves Claude Code's `@import`.
 - **Python floor: `>=3.11`, and it is a policy choice rather than a technical one.** Measured rather than assumed: every runtime dependency and every dev dependency declares `>=3.10`, and the full suite passes unmodified on 3.10 through 3.14. So nothing forces a floor above 3.10. The floor sits at 3.11 because Python 3.10 reaches end of life on 2026-10-31, and a supported floor that stops receiving security fixes almost immediately buys reach that is not worth a matrix entry. 3.11 is supported until October 2027 and is what Debian 12 ships. Lowering to 3.10 is a two-line change (`requires-python` and ruff's `target-version`).
 - **Typer floor matters more than the Python floor.** The CLI error boundary catches `typer.TyperException`, which is how the usage-error family is reached now that Typer 0.27 vendors Click as a private module. Versions 0.12, 0.15 and 0.19 do not expose it, and because Python evaluates an except clause lazily, an older Typer would have looked fine until a user mistyped a flag. Floor is `>=0.27` and a test asserts the attribute exists.
 - **Managed block marker prefix: `mdcompose`, renamed from `agentsmd` before v1.** The markers are `<!-- mdcompose:<block-id>:start -->`. The prefix was `agentsmd`, left over from the project's former name, while every other user-visible identifier (package, CLI, config dir, `mdcompose.lock`, the `generated_by` string) already said `mdcompose`. The marker format is a frozen compatibility surface once real files carry blocks: changing it later orphans every block already written and needs a migration command. A run against a fresh checkout confirmed nothing on disk depended on the old prefix yet, so it was aligned then, which was the last free moment. Constant lives at `managed_block.MARKER_PREFIX`; `test_marker_strings_are_exactly_this` locks the exact strings.
-- **Writing convention: plain ASCII everywhere.** No em dashes, en dashes, arrows, emoji, or smart quotes, in project documents or in mdcompose's own output. A Windows console on a [`cp1252`](https://en.wikipedia.org/wiki/Windows-1252) or [`cp437`](https://en.wikipedia.org/wiki/Code_page_437) code page (the legacy, non-Unicode character encodings a Windows terminal still defaults to) cannot encode them, so emitting one raises UnicodeEncodeError on the primary target platform; emoji also break column alignment through ambiguous width, and screen readers announce them verbatim. The rule constrains generated text only. Content mdcompose transports, such as a snippet body, is carried unaltered. CI enforces it with `scripts/check_ascii.py`.
-  - **Exception: [`README.md`](README.md), decided during the v1 README rewrite.** The README
-    is rendered by GitHub and PyPI, never printed to a console, and is meant to
-    look polished: it may use `tree`-style box-drawing characters and other
-    typography. `scripts/check_ascii.py` skips it. Every other document, and all
-    tool output, stays under the rule. Same class of maintainer reversal as the
-    OneDrive-detection decision.
+- **Writing convention: plain ASCII everywhere, `README.md` exempted.** Full rule and rationale in AGENTS.md's Conventions section; the one thing not there is that the README exemption was a maintainer reversal made during the v1 README rewrite, same class as the OneDrive-detection reversal.
 - **Interface: CLI first, TUI later as a second adapter.** The CLI is the interface that must run unattended, so the scriptability contract (exit codes, stream discipline, JSON output, a flag for every prompt) belongs to it and has no TUI equivalent. See the TUI section under Roadmap.
 - **Config and manifest format: JSON for both.** TOML was reconsidered specifically for the global config, since it is the one file most likely to be hand-edited and TOML allows comments, but kept as JSON for simplicity: one parser, one format, no second dependency. YAML is used only for snippet frontmatter, which is the one hand-authored file type.
-- **Release model: philosophy C, commitizen `cz bump` dispatched from `bump.yml`.**
-  The field has four models (see [`docs/commit-and-release-tooling.md`](docs/commit-and-release-tooling.md) section 3).
-  C is chosen because commitizen is already the commit-message tool, so bump +
-  changelog + tag in the same tool is one config and one mental model, and a
-  `workflow_dispatch` trigger is the human gate a solo maintainer needs.
-  Rejected, decision closed: A (python-semantic-release) - fully-automatic
-  on-merge releases replace commitizen's role and remove the gate, out of scope;
-  B (release-please) - a second bot and PR duplicating the bump-and-changelog
-  role; D (towncrier) - see the changelog entry.
-- **Changelog stays with commitizen; towncrier dropped.** `cz bump` writes the
-  version bump, the changelog, the commit, and the tag in one step from a Jinja2
-  template the project owns. Dedicated changelog generators (git-cliff,
-  git-chglog) were evaluated and removed from the catalogue: a separate binary
-  and config file for output polish a solo pre-1.0 project does not need.
-  `towncrier` (a human-written news fragment per PR) was also dropped: its
-  payoff scales with the number of outside contributors, currently zero, and
-  commit subjects enforced by `cz check` are the changelog source. Revisit only
-  if the commitizen template cannot produce the Keep a Changelog format, or if
-  per-PR reviewed changelog lines become valuable once contributors arrive.
-- **Secret scanning: gitleaks plus GitHub native, and trufflehog once.**
-  gitleaks runs as a pre-commit hook (staged diff) and a CI job (full history on
-  every push and PR). GitHub native secret scanning and push protection are
-  enabled at repo-creation time. trufflehog runs **once, locally, over the full
-  history immediately before the repo goes public** (`trufflehog git file://.
-  --only-verified`), is confirmed clean, and is then never run again: not a
-  hook, not a CI job. detect-secrets and per-commit trufflehog were considered
-  and rejected in [`docs/commit-and-release-tooling.md`](docs/commit-and-release-tooling.md).
+- **Release model, changelog tooling, and secret scanning: picks and rejected alternatives are in [`docs/commit-and-release-tooling.md`](docs/commit-and-release-tooling.md).** Short version: commitizen `cz bump` dispatched from `bump.yml` (philosophy C) does bump + changelog + tag in one tool; gitleaks (pre-commit hook and CI job) plus GitHub native scanning run continuously, trufflehog ran once, locally, before the repo went public.
 - **No version-derivation tooling.** `cz bump` writes `version` in
   `pyproject.toml` directly. hatch-vcs, `hatch version`, setuptools-scm,
   versioningit, and dunamai were all considered and rejected: a layer that
@@ -113,27 +70,13 @@ broken-image placeholder.
   `version_provider = "scm"` handshake with commitizen) than a solo project
   bumping one line per release needs. Decision closed.
 
-- **Demo GIF recording needs a pty CPR trick, if it is ever re-recorded.**
-  `questionary`'s picker sits on `prompt_toolkit`, which probes the terminal
-  with a cursor-position request (`\x1b[6n`) before it will live-redraw. A
-  bare `pexpect.spawn` pty never answers that probe, so the picker silently
-  degrades to a static, non-redrawing render -- every keystroke lands, but
-  nothing visibly updates until the final "done (N selections)" line. Fix
-  used for `docs/assets/mdcompose-demo.gif`: a background thread reads the
-  child pty directly (`os.read` on `child.child_fd`, not `child.expect`,
-  since only one reader can drain the fd), mirrors every byte to stdout for
-  `asciinema` to capture, and answers any `\x1b[6n` it sees with a plausible
-  `\x1b[<row>;1R` immediately. That alone is what makes the recording a real
-  live checkbox animation instead of a slideshow. The driver script and seed
-  snippets were scratch-only (`temp/`), never committed, so this needs
-  redoing from scratch next time.
-- **PyPI's `pyversions` badge reads classifiers, not `requires-python`.**
-  `pyproject.toml` had only a bare `Programming Language :: Python :: 3`
-  classifier, so shields.io rendered the badge as "Python 3" instead of the
-  real supported range. Fixed by listing `3.11` through `3.14` individually
-  as classifiers, matching the CI matrix. Takes effect only on the next
-  release; already-published metadata for a prior version is not
-  retroactively fixed.
+- **Demo GIF re-recording needs a pty CPR trick.** `questionary`/`prompt_toolkit`
+  probes the terminal with a cursor-position request (`\x1b[6n`) before it
+  live-redraws; a bare `pexpect.spawn` pty never answers it, so the picker
+  degrades to a static render. Fix: a background thread reads the child pty
+  directly (`os.read`, not `child.expect`) and answers the probe with a
+  plausible `\x1b[<row>;1R`. The driver script was scratch-only, never
+  committed, so this needs redoing from scratch if the GIF is ever redone.
 - **OpenSSF Best Practices registration is project 14614.**
   `https://www.bestpractices.dev/projects/14614`, homepage set to the GitHub
   repo URL, Passing tier across all six categories. Needed again only if the
@@ -154,153 +97,9 @@ broken-image placeholder.
 - [`docs/scorecard.md`](docs/scorecard.md) - the OpenSSF Scorecard score, the gap analysis, and
   what is and is not worth fixing. The action items are in the `Next` section
   above.
-
-## CI/CD pipeline
-
-The final plan. It is meant to be trusted and left alone: every workflow, its
-trigger, its cost, and the two non-obvious wrinkles (`bump.yml` needs a PAT;
-branch protection needs a bypass for it) are spelled out.
-
-### Cost - all free
-
-All CI runs on GitHub-hosted runners on a **public** repository: unlimited free
-minutes, Linux, Windows, and macOS included. Free third-party services, each
-free for public or personal-account use:
-
-- pre-commit.ci - hosted hook runner, free for public repos
-- Renovate (Mend app) - free for public repos
-- Dependabot security updates - free
-- OpenSSF Scorecard - free
-- CodeQL - free for public repos
-
-Excluded because metered or paid: Codecov. CodSpeed is wired (free OSS tier,
-connected at codspeed.io, see the `benchmarks` job below); Coverage itself is
-gated in-repo with `coverage --fail-under` and uploaded as an artifact, never
-sent to a service.
-
-One thing to confirm before wiring: `gitleaks/gitleaks-action` needs a free
-`GITLEAKS_LICENSE` key **only when the repo owner is a GitHub organisation**. If
-`Rovetown` is a personal account, no key is needed. Check at repo-creation time.
-
-### Principles
-
-- One workflow file per concern; each declares its own minimal `permissions`,
-  and a failure names the concern.
-- Every workflow gets a `concurrency` group keyed on the ref, cancelling
-  superseded runs on the same branch.
-- Every job sets `timeout-minutes`.
-- Actions pinned to a full commit SHA; Renovate's
-  `helpers:pinGitHubActionDigests` does the first pin and keeps them current.
-- One `all-green` gate job (`needs:` every other `ci.yml` job) so branch
-  protection requires one check, not twelve matrix legs.
-
-### Workflows - final list
-
-In the repo now: `ci.yml` (test matrix 3 OS x Python 3.11-3.14, `lint` (ruff +
-`mypy` + `deptry`), `coverage`, `ascii`, `build`, plus `hooks`, `commits`,
-`gitleaks`, `benchmarks` (CodSpeed, not in `all-green`'s needs), `all-green`),
-`supply-chain.yml` (`licenses`, `audit`, `osv`,
-`sbom`), `dependency-review.yml` (PR-only, `deny-licenses` = the copyleft
-families), `release.yml` (`v*` tag), `bump.yml` (the dispatched release button),
-`mutation.yml` (weekly `mutmut`), `codeql.yml`, `scorecard.yml`,
-`python-eol.yml`. `.pre-commit-config.yaml` carries a `ci:` block for
-pre-commit.ci. [`SECURITY.md`](SECURITY.md) points at private vulnerability reporting.
-
-What each of the newer pieces does:
-
-| File / job | Trigger | Does | Notes |
-| --- | --- | --- | --- |
-| `workflow lint` job in `ci.yml` | push, PR | `actionlint` + `zizmor` + `check-github-workflows` from pinned releases | the two hooks pre-commit.ci cannot run in its sandbox; the rest of `.pre-commit-config.yaml` is left to pre-commit.ci |
-| `commits` job in `ci.yml` | PR only | `cz check --rev-range base..head` (SHAs from the PR event, via an env var) | `fetch-depth: 0` |
-| `gitleaks` job in `ci.yml` | push, PR | `gitleaks-action@v2` over full history | the `hooks` job only sees the tree; this sees history |
-| `all-green` job in `ci.yml` | push, PR | `if: always()`, `needs:` every other job, passes only if each is `success` or `skipped` | the single required check |
-| `coverage` job in `ci.yml` | push, PR | `pytest --cov` on one platform, enforcing `fail_under` from `[tool.coverage.report]` | the matrix stays fast; only this job pays for coverage |
-| `osv` job in `supply-chain.yml` | push, PR, weekly | `google/osv-scanner-action` over `uv.lock` | third source next to `pip-audit` and grype |
-| `dependency-review.yml` | PR only | `actions/dependency-review-action@v4`, `fail-on-severity: moderate`, denies the copyleft licence families | inert until the repo and a PR exist |
-| `mutation.yml` | weekly cron + `workflow_dispatch` | `mutmut run` over `mdcompose/core`, `mutmut results` to the job summary | `continue-on-error`, no required check; `mutmut` is the `mutation` dependency group |
-| `bump.yml` | `workflow_dispatch`, input `prerelease` = choice `[stable, alpha, beta, rc]` | `cz bump --yes --changelog [--prerelease <choice>]`, commit, push `vX.Y.Z` | `fetch-depth: 0`; `if: github.ref == 'refs/heads/main'`; checks out with `secrets.RELEASE_TOKEN`; see the PAT wrinkle below |
-
-`release.yml` prerelease gate: a `classify` job matches the tag against
-`^v[0-9]+\.[0-9]+\.[0-9]+$`; a bare stable tag runs TestPyPI -> PyPI -> GitHub
-Release, a prerelease tag (`v0.4.0a1`, `b1`, `rc1`) or a `workflow_dispatch` off
-a branch runs TestPyPI only, with `pypi` and `github-release` gated on
-`if: needs.classify.outputs.stable == 'true'`.
-
-### The `bump.yml` PAT wrinkle (important)
-
-A tag pushed by the built-in `GITHUB_TOKEN` **does not trigger another
-workflow** (`release.yml` would never fire). And if branch protection blocks
-direct pushes to `main`, the bump commit is blocked too. Both are solved the
-same way:
-
-- Create a fine-grained PAT (or a GitHub App token) with `contents: write` on
-  this repo, store it as a secret (e.g. `RELEASE_TOKEN`).
-- `bump.yml` checks out and pushes with that token, not `GITHUB_TOKEN`.
-- In branch protection, allow that identity (the PAT's user, or the App) to
-  bypass the push restriction.
-
-The `workflow_dispatch` trigger plus the required reviewer on the `pypi`
-environment remain the human gates; the PAT only lets the automated commit and
-tag through.
-
-### Dormant - shipped commented, with an `# ENABLE WHEN:` marker
-
-- all-contributors config - ENABLE WHEN the first outside contributor lands.
-
-The `benchmarks` job in `ci.yml` was in this list; it is now uncommented,
-pinned, and connected at codspeed.io (run `34781861376`, commit `4b43aa5`,
-2026-09-13, uploaded successfully after an earlier run failed with a
-`401 Unauthorized` before the account-side connection existed). It runs on
-every push and PR but is not in `all-green`'s needs list, so it cannot block a
-merge.
-
-(`mutation.yml` is not dormant - it ships active on a weekly cron, non-blocking.)
-
-### Local iteration
-
-`act` (https://github.com/nektos/act) runs the workflow files in Docker without
-pushing - use it for `bump.yml` and the `ci.yml` jobs. It does not emulate
-OIDC, environments, or Trusted Publishing, so `release.yml` is still validated
-for real on a tag against TestPyPI.
-
-### pre-commit: framework vs accelerator vs runner - no conflicts
-
-- `pre-commit` is the framework and `.pre-commit-config.yaml`.
-- `pre-commit-uv` builds hook envs with uv; local-dev speed only, installed
-  alongside pre-commit, changes no output, pre-commit.ci ignores it.
-- `pre-commit.ci` is a hosted App that runs the same config on PRs, auto-fixes,
-  autoupdates weekly. A runner, not a competitor. Run the `hooks` job **or**
-  pre-commit.ci, never both.
-
-### Branch protection (repo settings, at creation time)
-
-Require before merge to `main`: `all-green`, `supply chain / licenses`,
-`supply chain / audit`, `supply chain / sbom`, `supply chain / osv`, `CodeQL`.
-Require one review, require the branch up to date, require linear history
-(matches the fast-forward merge style), block force-push. Enable Dependabot
-alerts + security updates and private vulnerability reporting. Allow the
-`bump.yml` token identity to bypass the push restriction.
-
-### Release flow, end to end
-
-1. Conventional Commits land on `main` (enforced by the `commits` job and the
-   `cz check` hook).
-2. Run `bump.yml` from the Actions tab; pick stable or a prerelease channel.
-   `cz bump` writes the version and changelog, commits, pushes `vX.Y.Z` with the
-   PAT.
-3. `release.yml` fires on the tag: build, check, SBOM, then TestPyPI, then
-   (stable tags only) PyPI behind the `pypi` reviewer, then the GitHub Release.
-4. Between releases: Renovate and Dependabot keep dependencies and pinned SHAs
-   current; CodeQL, Scorecard, and `python-eol.yml` run on their schedules.
-
-### Explicitly not in the pipeline
-
-Codecov / any other metered service (cost); git-cliff / towncrier
-(commitizen writes the changelog); release-please / python-semantic-release
-(rejected, philosophy C is the model); a triage bot (issue volume); hatch-vcs /
-`hatch version` / setuptools-scm (no version-derivation layer; `cz bump` writes
-`version` directly); trufflehog as a hook or job (it is a one-time local
-pre-publish run only).
+- [`docs/ci-cd.md`](docs/ci-cd.md) - every workflow, its trigger and cost, the
+  `bump.yml` PAT wrinkle, branch protection settings, and the release flow
+  end to end.
 
 ## Standing decision: competitive landscape
 
@@ -334,13 +133,6 @@ but because it is the active brand of an existing company (ContextSmith Inc.,
 B2B customer-intelligence SaaS, founded 2015, Sunnyvale). Fine for purely
 personal unpublished use, never for anything released.
 
-## Repository and release setup
-
-Done, 2026-09-10. Plan and rationale: [`docs/publishing.md`](docs/publishing.md).
-Repo public, ruleset active, `RELEASE_TOKEN` and both Actions environments
-exist, both trusted publishers registered, `pre-commit.ci` enabled. Nothing
-open here; live remaining work is in `Next` at the top of this file.
-
 ## Roadmap (later, deferred)
 
 This section is TODO the same as `Next`, just longer-horizon: each item below
@@ -352,30 +144,6 @@ job, a benchmark suite with a recorded baseline, the file-I/O hardening review
 and parser fuzzing. `platform.py` and the interactive questionary pickers in
 `init` and `import` are the accepted remaining coverage gap; their flag paths
 are fully covered.
-
-### Agent skill composition (shipped)
-
-Composing a project's skill library into `.claude/skills/<id>/SKILL.md` the
-same way AGENTS.md/CLAUDE.md are composed is done (OpenSpec change
-`agent-skill-composition`), and so is managing the skill library itself:
-`skill list`, `skill edit`, `skill remove`, `skill adopt` (OpenSpec change
-`skill-commands`), mirroring `mdcompose snippet` command-for-command. Both
-reused the managed-block-and-manifest core rather than forking it, per the
-standing bar for this Roadmap section.
-
-A skill bundled with an accompanying script is also done (OpenSpec change
-`skill-script-bundle`). The skill library entry is now either the original
-single `.md` file or a directory (`<id>/SKILL.md` plus accompanying files at
-other relative paths), sharing one id namespace; `mdcompose.lock` schema
-version 3 embeds a directory-shaped skill's accompanying files under the
-entry's `files` field; composition writes and drift-tracks each accompanying
-file by a whole-file hash, since a script has no managed-block-safe comment
-syntax; `skill list/edit/remove/adopt` all handle a directory-shaped entry,
-with `--file` on `skill edit` targeting one accompanying file. See the
-change's design.md for the full decision log (file-or-directory-never-both,
-UTF-8-text-only accompanying files, no binary support).
-
-Nothing open in this area.
 
 ### Third-party integrations
 
