@@ -501,3 +501,143 @@ def test_build_and_write_round_trip_skills_and_block_id(tmp_path: Path) -> None:
     assert reread.schema_version == manifest_module.SCHEMA_VERSION
     assert reread.skills[0].id == "code-review"
     assert reread.files["code-review"].block_id == SKILL_BLOCK
+
+
+ACCOMPANYING_CONTENT = "print('lint')\n"
+ACCOMPANYING_HASH = files.hash_content(ACCOMPANYING_CONTENT)
+
+
+def test_a_skill_entry_with_no_files_serializes_like_before(tmp_path: Path) -> None:
+    built = manifest_module.build(
+        generated_by="mdcompose 0.2.0",
+        generated_at="2026-09-14T00:00:00Z",
+        detected_stack=(),
+        snippets=(),
+        skills=(manifest_module.SkillEntry(id="code-review", position=0, content=SKILL_CONTENT),),
+        files_recorded={},
+        source=manifest_module.manifest_path(tmp_path),
+    )
+    document = manifest_module.to_document(built)
+    assert document["skills"] == [
+        {"id": "code-review", "position": 0, "content": SKILL_CONTENT}
+    ]
+    assert document["schema_version"] == 3
+
+
+def test_a_skill_entry_with_files_embeds_them(tmp_path: Path) -> None:
+    built = manifest_module.build(
+        generated_by="mdcompose 0.2.0",
+        generated_at="2026-09-14T00:00:00Z",
+        detected_stack=(),
+        snippets=(),
+        skills=(
+            manifest_module.SkillEntry(
+                id="lint-helper",
+                position=0,
+                content=SKILL_CONTENT,
+                files={"scripts/lint.py": ACCOMPANYING_CONTENT},
+            ),
+        ),
+        files_recorded={},
+        source=manifest_module.manifest_path(tmp_path),
+    )
+    document = manifest_module.to_document(built)
+    assert document["skills"][0]["files"] == {"scripts/lint.py": ACCOMPANYING_CONTENT}
+
+
+def test_a_skill_entry_files_round_trips(tmp_path: Path) -> None:
+    payload = manifest_payload(
+        skills=[
+            {
+                "id": "lint-helper",
+                "position": 0,
+                "content": SKILL_CONTENT,
+                "files": {"scripts/lint.py": ACCOMPANYING_CONTENT},
+            }
+        ]
+    )
+    manifest = manifest_module.load_manifest(write_manifest(tmp_path, payload))
+    assert manifest is not None
+    assert manifest.skills[0].files == {"scripts/lint.py": ACCOMPANYING_CONTENT}
+
+
+def test_a_wrong_typed_skill_files_value_is_refused(tmp_path: Path) -> None:
+    payload = manifest_payload(
+        skills=[
+            {
+                "id": "lint-helper",
+                "position": 0,
+                "content": SKILL_CONTENT,
+                "files": {"scripts/lint.py": 5},
+            }
+        ]
+    )
+    with pytest.raises(AttentionError) as raised:
+        manifest_module.load_manifest(write_manifest(tmp_path, payload))
+    assert "lint-helper" in str(raised.value)
+
+
+def test_a_schema_2_manifest_with_no_files_key_still_reads(tmp_path: Path) -> None:
+    """A version-2 manifest never wrote 'files' on a skill entry."""
+    payload = manifest_payload(
+        schema_version=2,
+        skills=[{"id": "code-review", "position": 0, "content": SKILL_CONTENT}],
+    )
+    manifest = manifest_module.load_manifest(write_manifest(tmp_path, payload))
+    assert manifest is not None
+    assert manifest.schema_version == 2
+    assert manifest.skills[0].files == {}
+
+
+def test_drift_for_an_accompanying_file_uses_the_whole_file_hash(tmp_path: Path) -> None:
+    accompanying_path = tmp_path / ".claude" / "skills" / "lint-helper" / "scripts" / "lint.py"
+    accompanying_path.parent.mkdir(parents=True)
+    accompanying_path.write_bytes(ACCOMPANYING_CONTENT.encode("utf-8"))
+    payload = manifest_payload(
+        files={
+            "lint-helper:scripts/lint.py": {
+                "path": ".claude/skills/lint-helper/scripts/lint.py",
+                "mode": "copy",
+                "managed_block_hash": ACCOMPANYING_HASH,
+            }
+        }
+    )
+    manifest = manifest_module.load_manifest(write_manifest(tmp_path, payload))
+    assert manifest is not None
+    drift = manifest_module.detect_drift(manifest, tmp_path)
+    assert drift[0].status == manifest_module.CLEAN
+
+
+def test_drift_for_a_hand_edited_accompanying_file_is_drifted(tmp_path: Path) -> None:
+    accompanying_path = tmp_path / ".claude" / "skills" / "lint-helper" / "scripts" / "lint.py"
+    accompanying_path.parent.mkdir(parents=True)
+    accompanying_path.write_bytes(b"print('hand edited')\n")
+    payload = manifest_payload(
+        files={
+            "lint-helper:scripts/lint.py": {
+                "path": ".claude/skills/lint-helper/scripts/lint.py",
+                "mode": "copy",
+                "managed_block_hash": ACCOMPANYING_HASH,
+            }
+        }
+    )
+    manifest = manifest_module.load_manifest(write_manifest(tmp_path, payload))
+    assert manifest is not None
+    drift = manifest_module.detect_drift(manifest, tmp_path)
+    assert drift[0].status == manifest_module.DRIFTED
+
+
+def test_drift_for_a_missing_accompanying_file(tmp_path: Path) -> None:
+    payload = manifest_payload(
+        files={
+            "lint-helper:scripts/lint.py": {
+                "path": ".claude/skills/lint-helper/scripts/lint.py",
+                "mode": "copy",
+                "managed_block_hash": ACCOMPANYING_HASH,
+            }
+        }
+    )
+    manifest = manifest_module.load_manifest(write_manifest(tmp_path, payload))
+    assert manifest is not None
+    drift = manifest_module.detect_drift(manifest, tmp_path)
+    assert drift[0].status == manifest_module.MISSING

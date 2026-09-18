@@ -353,7 +353,7 @@ and parser fuzzing. `platform.py` and the interactive questionary pickers in
 `init` and `import` are the accepted remaining coverage gap; their flag paths
 are fully covered.
 
-### Agent skill composition follow-ups (base feature and command group shipped)
+### Agent skill composition (shipped)
 
 Composing a project's skill library into `.claude/skills/<id>/SKILL.md` the
 same way AGENTS.md/CLAUDE.md are composed is done (OpenSpec change
@@ -361,15 +361,21 @@ same way AGENTS.md/CLAUDE.md are composed is done (OpenSpec change
 `skill list`, `skill edit`, `skill remove`, `skill adopt` (OpenSpec change
 `skill-commands`), mirroring `mdcompose snippet` command-for-command. Both
 reused the managed-block-and-manifest core rather than forking it, per the
-standing bar for this Roadmap section. One piece was deliberately cut from
-the base change and is the real remaining backlog:
+standing bar for this Roadmap section.
 
-- [ ] A skill bundled with an accompanying script. The skill library and
-  `mdcompose.lock` model shipped is single-file-per-item throughout, the same
-  as the snippet library; a script-bearing skill needs a directory-shaped
-  library entry, which is a real extension of the "library holds nothing but
-  `.md` files" invariant and deserves its own proposal rather than folding
-  into the base change.
+A skill bundled with an accompanying script is also done (OpenSpec change
+`skill-script-bundle`). The skill library entry is now either the original
+single `.md` file or a directory (`<id>/SKILL.md` plus accompanying files at
+other relative paths), sharing one id namespace; `mdcompose.lock` schema
+version 3 embeds a directory-shaped skill's accompanying files under the
+entry's `files` field; composition writes and drift-tracks each accompanying
+file by a whole-file hash, since a script has no managed-block-safe comment
+syntax; `skill list/edit/remove/adopt` all handle a directory-shaped entry,
+with `--file` on `skill edit` targeting one accompanying file. See the
+change's design.md for the full decision log (file-or-directory-never-both,
+UTF-8-text-only accompanying files, no binary support).
+
+Nothing open in this area.
 
 ### Third-party integrations
 

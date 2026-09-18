@@ -8,6 +8,7 @@ that means nothing on this side. See design.md for the reasoning.
 
 from __future__ import annotations
 
+import shutil
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
@@ -15,7 +16,7 @@ from typing import Literal
 
 from mdcompose.core import files, skills
 from mdcompose.core.exit_codes import AttentionError
-from mdcompose.core.manifest import Manifest
+from mdcompose.core.manifest import Manifest, SkillEntry
 from mdcompose.core.skills import Skill
 
 Resolution = Literal["keep", "overwrite"]
@@ -27,13 +28,37 @@ RESOLUTIONS: tuple[Resolution, ...] = (KEEP, OVERWRITE)
 AdoptOutcome = Literal["written", "already-present", "kept", "overwritten"]
 
 
+#: The filename used as the key for a skill's own body within the per-file
+#: maps below, so a file-shaped and a directory-shaped skill compare through
+#: one uniform representation: {"SKILL.md": body, **accompanying files}.
+_SKILL_MD_KEY = skills.SKILL_MD_FILENAME
+
+
 @dataclass(frozen=True, slots=True)
 class Collision:
-    """An embedded skill whose id already exists locally with other content."""
+    """An embedded skill whose id already exists locally with other content.
+
+    ``embedded`` and ``local`` each map a file's path to its content, keyed
+    ``"SKILL.md"`` for the skill's own body and by relative path for every
+    accompanying file, so a collision confined to one accompanying file still
+    names which one, without needing a separate shape for a bundle skill.
+    """
 
     skill_id: str
-    embedded: str
-    local: str
+    embedded: Mapping[str, str]
+    local: Mapping[str, str]
+
+    @property
+    def differing_paths(self) -> tuple[str, ...]:
+        """Which files actually differ, for a message that names them."""
+        paths = set(self.embedded) | set(self.local)
+        return tuple(
+            sorted(
+                path
+                for path in paths
+                if not files.content_equal(self.embedded.get(path, ""), self.local.get(path, ""))
+            )
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -84,13 +109,15 @@ def plan_adopt(
         if only and entry.id not in only:
             continue
         local = library.find(entry.id)
+        embedded_files = _files_of_entry(entry)
         if local is None:
-            to_write.append(_skill_from_manifest(entry.id, entry.content))
+            to_write.append(_skill_from_files(entry.id, embedded_files))
             continue
-        if files.content_equal(local.body, entry.content):
+        local_files = _files_of(local)
+        if _files_equal(embedded_files, local_files):
             already_present.append(entry.id)
             continue
-        collisions.append(Collision(skill_id=entry.id, embedded=entry.content, local=local.body))
+        collisions.append(Collision(skill_id=entry.id, embedded=embedded_files, local=local_files))
 
     return AdoptPlan(
         to_write=tuple(to_write),
@@ -110,14 +137,38 @@ def _require_known_ids(manifest: Manifest, requested: tuple[str, ...]) -> None:
         )
 
 
-def _skill_from_manifest(skill_id: str, content: str) -> Skill:
-    """Build a library skill from a manifest entry.
+def _files_of_entry(entry: SkillEntry) -> dict[str, str]:
+    """A manifest skill entry's files, uniform with ``_files_of``."""
+    return {_SKILL_MD_KEY: entry.content, **entry.files}
 
-    Only what the manifest carries is set: id and content. A manifest entry
-    records no descriptive metadata a user would write by hand, so the
-    adopted skill starts minimal rather than with invented fields.
+
+def _files_of(skill: Skill) -> dict[str, str]:
+    """A library skill's files, uniform whether file-shaped or a bundle."""
+    return {_SKILL_MD_KEY: skill.body, **skill.files}
+
+
+def _files_equal(left: Mapping[str, str], right: Mapping[str, str]) -> bool:
+    """Whether two file maps hold the same paths with the same content."""
+    if set(left) != set(right):
+        return False
+    return all(files.content_equal(left[path], right[path]) for path in left)
+
+
+def _skill_from_files(skill_id: str, all_files: Mapping[str, str]) -> Skill:
+    """Build a library skill from a uniform file map (see ``_files_of``).
+
+    Only what the map carries is set: id, body, and accompanying files. A
+    manifest entry records no descriptive metadata a user would write by
+    hand, so the adopted skill starts minimal rather than with invented
+    fields.
     """
-    return Skill(id=skills.validate_id(skill_id), body=content)
+    accompanying = {path: content for path, content in all_files.items() if path != _SKILL_MD_KEY}
+    return Skill(
+        id=skills.validate_id(skill_id),
+        body=all_files.get(_SKILL_MD_KEY, ""),
+        is_bundle=bool(accompanying),
+        files=accompanying,
+    )
 
 
 def apply_adopt(
@@ -144,7 +195,7 @@ def apply_adopt(
         if resolutions.get(collision.skill_id, KEEP) == OVERWRITE:
             skills.write(
                 library_directory,
-                _skill_from_manifest(collision.skill_id, collision.embedded),
+                _skill_from_files(collision.skill_id, collision.embedded),
             )
             outcomes[collision.skill_id] = "overwritten"
         else:
@@ -156,25 +207,47 @@ def apply_adopt(
 def remove_skill(library: skills.LibraryView, skill_id: str) -> Path:
     """Delete a skill from the skill library.
 
-    Refuses an unknown id by name. Deletes only the skill file, and never
-    touches a project that already composed it: composition copies content, so
-    a composed file keeps working after its source skill is gone.
+    Refuses an unknown id by name. Deletes the skill's whole directory for a
+    directory-shaped skill (its `SKILL.md`, every accompanying file, and the
+    directory itself), or its one file otherwise. Never touches a project
+    that already composed it: composition copies content, so a composed file
+    keeps working after its source skill is gone.
     """
     skill = library.require(skill_id)
     if skill.path is None:
         raise AttentionError(f"skill '{skill_id}' has no file on disk to remove")
+    if skill.is_bundle:
+        shutil.rmtree(skill.path.parent)
+        return skill.path.parent
     skill.path.unlink()
     return skill.path
 
 
-def replace_body(library: skills.LibraryView, skill_id: str, text: str) -> Path:
-    """Replace a skill's file contents, validating before writing.
+def replace_body(
+    library: skills.LibraryView, skill_id: str, text: str, *, relative: str | None = None
+) -> Path:
+    """Replace one of a skill's files, validating before writing.
 
-    The candidate is parsed first, so a supplied body with broken frontmatter
-    is refused and the existing skill is left exactly as it was.
+    ``relative`` names which file, relative to the skill's own directory:
+    left at its default (or set to ``SKILL.md`` explicitly), it targets
+    `SKILL.md` and validates the candidate as a skill body, so a supplied
+    body with broken frontmatter is refused and the existing skill is left
+    exactly as it was. Any other relative path targets, or creates, one of a
+    directory-shaped skill's accompanying files, written verbatim with no
+    validation of its own; naming one against a file-shaped skill, which has
+    no directory to hold it, is refused.
     """
     skill = library.require(skill_id)
-    skills.parse(text, skill_id)
-    target = skills.path_for(library.directory, skill_id)
+    if relative is None or relative == skills.SKILL_MD_FILENAME:
+        skills.parse(text, skill_id)
+        default_target = skills.path_for(library.directory, skill_id)
+        target = default_target if skill.path is None else skill.path
+        files.write_text(target, text, line_ending=files.line_ending_for(target))
+        return target
+
+    if not skill.is_bundle or skill.path is None:
+        raise AttentionError(f"skill '{skill_id}' has no accompanying files")
+    target = skill.path.parent / relative
+    target.parent.mkdir(parents=True, exist_ok=True)
     files.write_text(target, text, line_ending=files.line_ending_for(target))
-    return skill.path if skill.path is not None else target
+    return target

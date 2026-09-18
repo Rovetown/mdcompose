@@ -55,13 +55,21 @@ class FileTarget:
 
     ``frontmatter`` is ``None`` for AGENTS.md/CLAUDE.md, where nothing sits
     outside the managed block that mdcompose itself generates. It is set for
-    a skill target, whose ``name``/``description`` frontmatter must precede
-    the block and is regenerated on every write; see ``skill_composition.py``.
+    a skill's ``SKILL.md`` target, whose ``name``/``description`` frontmatter
+    must precede the block and is regenerated on every write; see
+    ``skill_composition.py``.
+
+    ``block_id`` is ``None`` for a directory-shaped skill's accompanying file,
+    which has no managed block at all: the whole file is mdcompose's, written
+    and drift-checked as a unit (see ``skill_composition.apply_accompanying_file``
+    and ``manifest.py``'s drift handling for an entry with no block id). Such a
+    target also carries no frontmatter, which together with a ``None``
+    ``block_id`` is what distinguishes it from every other target.
     """
 
     key: str
     path: Path
-    block_id: str
+    block_id: str | None
     content: str
     relative_path: str
     frontmatter: str | None = None
@@ -233,10 +241,17 @@ def skills_from_manifest(manifest: manifest_module.Manifest) -> tuple[Skill, ...
     """Build a skill selection from a manifest's embedded content.
 
     Used on the clone path, where the local skill library may be empty or
-    may not have this skill at all.
+    may not have this skill at all. A skill entry carrying embedded
+    accompanying files reconstructs as a directory-shaped skill.
     """
     return tuple(
-        Skill(id=entry.id, body=entry.content) for entry in manifest.skills_in_order()
+        Skill(
+            id=entry.id,
+            body=entry.content,
+            is_bundle=bool(entry.files),
+            files=dict(entry.files),
+        )
+        for entry in manifest.skills_in_order()
     )
 
 
@@ -361,9 +376,7 @@ def plan(
         from_embedded=from_embedded,
         skill_selection=skill_selection,
         skill_selection_source=skill_source,
-        stale_skill_paths=_stale_skill_paths(
-            root, manifest, tuple(skill.id for skill in skill_selection)
-        ),
+        stale_skill_paths=_stale_skill_paths(root, manifest, skill_selection),
     )
 
 
@@ -394,23 +407,35 @@ def _detect(
 
 
 def _stale_skill_paths(
-    root: Path, manifest: manifest_module.Manifest | None, current_skill_ids: tuple[str, ...]
+    root: Path, manifest: manifest_module.Manifest | None, selection: Sequence[Skill]
 ) -> tuple[Path, ...]:
-    """Manifest-recorded skill files not in the current selection, by full path.
+    """Manifest-recorded skill files no longer part of the selection, by full path.
 
     Anything in ``manifest.files`` keyed by something other than the two
-    well-known AGENTS.md/CLAUDE.md keys is a skill entry, since this is the
-    only feature that ever writes a third kind of key.
+    well-known AGENTS.md/CLAUDE.md keys is a skill entry: either a skill's own
+    id (its ``SKILL.md``), or ``<skill id>:<relative path>`` (one of its
+    accompanying files; see ``manifest.py``'s schema). A file is stale when its
+    owning skill is no longer selected at all, or, for an accompanying file,
+    when that skill is still selected but no longer carries that particular
+    file.
     """
     if manifest is None:
         return ()
-    current = set(current_skill_ids)
+    current_files = {skill.id: set(skill.files) for skill in selection}
     return tuple(
         root / entry.path
         for key, entry in manifest.files.items()
         if key not in {manifest_module.AGENTS_MD_KEY, manifest_module.CLAUDE_MD_KEY}
-        and key not in current
+        and _is_stale_skill_key(key, current_files)
     )
+
+
+def _is_stale_skill_key(key: str, current_files: Mapping[str, set[str]]) -> bool:
+    """Whether a skill-keyed manifest entry no longer belongs to the selection."""
+    skill_id, _, relative = key.partition(":")
+    if skill_id not in current_files:
+        return True
+    return bool(relative) and relative not in current_files[skill_id]
 
 
 def _recorded_mode(manifest: manifest_module.Manifest | None) -> Mode | None:
@@ -480,16 +505,40 @@ def _targets(
 
 
 def _skill_targets(root: Path, selection: Sequence[Skill]) -> tuple[FileTarget, ...]:
+    targets: list[FileTarget] = []
+    for skill in selection:
+        targets.append(
+            FileTarget(
+                key=skill.id,
+                path=skill_composition.skill_path(root, skill.id),
+                block_id=managed_block.SKILL_MANAGED_BLOCK,
+                content=_skill_body(skill),
+                relative_path=skill_composition.skill_path(Path(), skill.id).as_posix(),
+                frontmatter=skill_composition.render_frontmatter(skill),
+            )
+        )
+        targets.extend(_accompanying_targets(root, skill))
+    return tuple(targets)
+
+
+def _accompanying_targets(root: Path, skill: Skill) -> tuple[FileTarget, ...]:
+    """One target per accompanying file of a directory-shaped skill.
+
+    ``block_id`` is ``None`` and ``frontmatter`` is left at its default,
+    which together mark this as neither a ``SKILL.md`` target nor an
+    AGENTS.md/CLAUDE.md target: see ``FileTarget``.
+    """
+    skill_dir = skill_composition.skill_path(root, skill.id).parent
+    relative_skill_dir = skill_composition.skill_path(Path(), skill.id).parent
     return tuple(
         FileTarget(
-            key=skill.id,
-            path=skill_composition.skill_path(root, skill.id),
-            block_id=managed_block.SKILL_MANAGED_BLOCK,
-            content=_skill_body(skill),
-            relative_path=skill_composition.skill_path(Path(), skill.id).as_posix(),
-            frontmatter=skill_composition.render_frontmatter(skill),
+            key=f"{skill.id}:{relative}",
+            path=skill_dir / relative,
+            block_id=None,
+            content=content,
+            relative_path=(relative_skill_dir / relative).as_posix(),
         )
-        for skill in selection
+        for relative, content in sorted(skill.files.items())
     )
 
 
@@ -529,9 +578,12 @@ def apply(
             entries[target.key] = _entry_for_existing(target, plan_to_apply)
             continue
         if target.frontmatter is not None:
+            assert target.block_id is not None  # a SKILL.md target always has one
             changed = skill_composition.apply_to_file(
                 target.path, target.block_id, target.content, target.frontmatter
             )
+        elif target.block_id is None:
+            changed = skill_composition.apply_accompanying_file(target.path, target.content)
         else:
             changed = composition.apply_to_file(target.path, target.block_id, target.content)
         if changed:
@@ -563,25 +615,42 @@ def apply(
 
 
 def _delete_stale_skill_files(paths: Sequence[Path]) -> tuple[str, ...]:
-    """Delete a manifest-recorded skill file no longer in the selection.
+    """Delete manifest-recorded skill files no longer part of the selection.
 
-    Removes the skill's directory afterward only if it is now empty, never a
-    directory the user has put something else into.
+    Removes empty directories left behind afterward, walking upward from each
+    deleted file's parent. The walk stops at, and never removes, the shared
+    `.claude/skills` directory itself, never a directory the user has put
+    something else into, and it revisits a directory left empty by an earlier
+    deletion in the same batch (a bundle skill's own directory can become
+    empty only after its last accompanying file is gone).
     """
     deleted: list[str] = []
     for path in paths:
         if files.path_exists(path) and path.is_file():
             path.unlink()
             deleted.append(path.as_posix())
-        parent = path.parent
-        if files.path_exists(parent) and parent.is_dir() and not any(parent.iterdir()):
-            parent.rmdir()
+        _remove_empty_ancestors(path.parent)
     return tuple(deleted)
+
+
+def _remove_empty_ancestors(directory: Path) -> None:
+    current = directory
+    while (
+        files.path_exists(current)
+        and current.is_dir()
+        and current.name != skill_composition.SKILLS_DIR_NAME
+        and not any(current.iterdir())
+    ):
+        parent = current.parent
+        current.rmdir()
+        current = parent
 
 
 def _entry_mode(target: FileTarget, plan_to_apply: InitPlan) -> Mode:
     """A skill target has no import/copy distinction; it is always materialized."""
-    return composition.COPY if target.frontmatter is not None else plan_to_apply.mode
+    if target.frontmatter is not None or target.block_id is None:
+        return composition.COPY
+    return plan_to_apply.mode
 
 
 def _entry_for(target: FileTarget, plan_to_apply: InitPlan) -> manifest_module.FileEntry:
@@ -602,11 +671,15 @@ def _entry_for_existing(
     Recording what is actually there, rather than what mdcompose would have
     written, is what stops the same drift being reported on every later run. It
     also means a clone reproduces the kept version rather than the one the user
-    deliberately replaced.
+    deliberately replaced. An accompanying file has no managed block to read
+    the kept content from: the whole file is what was kept.
     """
-    result = managed_block.read_blocks(target.path)
-    block = result.find(target.block_id)
-    content = target.content if block is None else block.content
+    if target.block_id is None:
+        content = files.read_text(target.path)
+    else:
+        result = managed_block.read_blocks(target.path)
+        block = result.find(target.block_id)
+        content = target.content if block is None else block.content
     return manifest_module.FileEntry(
         path=target.relative_path,
         mode=_entry_mode(target, plan_to_apply),
@@ -630,6 +703,8 @@ def _snippet_entries(selection: Sequence[Snippet]) -> tuple[manifest_module.Snip
 
 def _skill_entries(selection: Sequence[Skill]) -> tuple[manifest_module.SkillEntry, ...]:
     return tuple(
-        manifest_module.SkillEntry(id=skill.id, position=index, content=skill.body)
+        manifest_module.SkillEntry(
+            id=skill.id, position=index, content=skill.body, files=dict(skill.files)
+        )
         for index, skill in enumerate(selection)
     )

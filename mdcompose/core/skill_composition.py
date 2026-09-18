@@ -14,6 +14,13 @@ for frontmatter that must track the library on every run. So writing a skill
 file additionally regenerates the region before the block on every write,
 while everything from the block onward (the block itself, and anything a
 user appended after it) keeps the ordinary preserve-and-hash treatment.
+
+A directory-shaped skill's accompanying files have no such frontmatter
+concern and no managed block at all: a script has no comment syntax
+mdcompose can rely on being safe to inject into. Each is written whole, at
+its own path under the skill's composed directory, drift-tracked by a
+whole-file hash instead of a block hash (see ``manifest.py``'s drift
+handling for an entry with no block id).
 """
 
 from __future__ import annotations
@@ -64,6 +71,17 @@ def apply_to_file(path: Path, block_id: str, content: str, frontmatter: str) -> 
     path.parent.mkdir(parents=True, exist_ok=True)
     files.write_text(path, updated, line_ending=files.line_ending_for(path))
     return True
+
+
+def apply_accompanying_file(path: Path, content: str) -> bool:
+    """Write one accompanying file of a directory-shaped skill.
+
+    Unlike ``apply_to_file``, there is no managed block: the whole file is
+    mdcompose's, so it is written whole and only when it actually changed.
+    Returns whether anything changed, the same contract ``apply_to_file`` has.
+    """
+    path.parent.mkdir(parents=True, exist_ok=True)
+    return files.write_if_changed(path, content)
 
 
 def _with_frontmatter(text: str, block_id: str, frontmatter: str, source: Path) -> str:

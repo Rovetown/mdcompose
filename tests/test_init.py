@@ -585,6 +585,16 @@ def write_skill(workspace: Path, name: str, text: str) -> None:
     (directory / f"{name}.md").write_text(text, encoding="utf-8")
 
 
+def write_bundle_skill(workspace: Path, name: str, skill_md: str, **accompanying: str) -> None:
+    directory = skill_library_dir(workspace) / name
+    directory.mkdir(parents=True, exist_ok=True)
+    (directory / "SKILL.md").write_bytes(skill_md.encode("utf-8"))
+    for relative, content in accompanying.items():
+        target = directory / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(content.encode("utf-8"))
+
+
 SKILL_BLOCK = managed_block.SKILL_MANAGED_BLOCK
 
 
@@ -624,6 +634,40 @@ def test_deselecting_a_skill_on_a_later_run_deletes_its_file(
     assert result.code == EXIT_OK
     assert not skill_file.exists()
     assert "deleted" in result.out
+
+
+def test_a_bundle_skill_composes_with_its_accompanying_file(
+    invoke: Invoke, workspace: Path
+) -> None:
+    write_bundle_skill(
+        workspace,
+        "lint-helper",
+        "---\ndescription: Lints the project\n---\n\nRun the linter.\n",
+        **{"scripts/lint.py": "print('lint')\n"},
+    )
+    result = invoke("init", "--mode", "import", "--snippets", ALL, "--skills", "lint-helper")
+    assert result.code == EXIT_OK
+    skill_dir = workspace / ".claude" / "skills" / "lint-helper"
+    assert (skill_dir / "SKILL.md").exists()
+    assert (skill_dir / "scripts" / "lint.py").read_text(encoding="utf-8") == "print('lint')\n"
+
+    manifest = read_manifest(workspace)
+    assert manifest.skills[0].files == {"scripts/lint.py": "print('lint')\n"}
+
+
+def test_deselecting_a_bundle_skill_deletes_its_accompanying_file_too(
+    invoke: Invoke, workspace: Path
+) -> None:
+    write_bundle_skill(
+        workspace, "lint-helper", "Run the linter.\n", **{"scripts/lint.py": "print('lint')\n"}
+    )
+    invoke("init", "--mode", "import", "--snippets", ALL, "--skills", "lint-helper")
+    skill_dir = workspace / ".claude" / "skills" / "lint-helper"
+    assert (skill_dir / "scripts" / "lint.py").exists()
+
+    result = invoke("init", "--mode", "import", "--snippets", ALL, "--skills", "")
+    assert result.code == EXIT_OK
+    assert not skill_dir.exists()
 
 
 def test_an_empty_skill_library_never_opens_the_skill_picker(
@@ -701,6 +745,28 @@ def test_a_clone_with_an_embedded_skill_requires_confirmation(
     skill_file = clone / ".claude" / "skills" / "code-review" / "SKILL.md"
     assert skill_file.exists()
     assert "Review." in skill_file.read_text(encoding="utf-8")
+
+
+def test_a_clone_with_an_embedded_bundle_skill_requires_confirmation(
+    invoke: Invoke, workspace: Path, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    write_bundle_skill(
+        workspace, "lint-helper", "Run the linter.\n", **{"scripts/lint.py": "print('lint')\n"}
+    )
+    invoke("init", "--mode", "import", "--snippets", ALL, "--skills", "lint-helper")
+    clone = clone_of(workspace, workspace.parent / "clone")
+    monkeypatch.setattr(platform_module, "config_dir", lambda: tmp_path / "no-library")
+    monkeypatch.chdir(clone)
+
+    refused = invoke("init")
+    assert refused.code == EXIT_ATTENTION
+    assert "print('lint')" in refused.out
+    assert not (clone / ".claude" / "skills" / "lint-helper" / "scripts" / "lint.py").exists()
+
+    confirmed = invoke("init", "--yes")
+    assert confirmed.code == EXIT_OK
+    accompanying = clone / ".claude" / "skills" / "lint-helper" / "scripts" / "lint.py"
+    assert accompanying.read_text(encoding="utf-8") == "print('lint')\n"
 
 
 def test_a_fully_scripted_run_never_prompts(invoke: Invoke, workspace: Path) -> None:

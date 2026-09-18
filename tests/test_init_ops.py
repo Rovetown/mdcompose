@@ -671,3 +671,288 @@ def test_the_embedded_skill_shows_up_in_targets_for_the_foreign_content_confirma
         requested_mode=composition.IMPORT,
     )
     assert any(target.key == "code-review" for target in prepared.targets)
+
+
+# --- directory-shaped (bundle) skills ---
+
+
+@pytest.fixture
+def bundle_skill_library(tmp_path: Path) -> skills_module.LibraryView:
+    directory = tmp_path / "bundle-skill-library"
+    skills_module.write(
+        directory,
+        Skill(
+            id="lint-helper",
+            body="Run the linter.\n",
+            description="Lints the project",
+            is_bundle=True,
+            files={"scripts/lint.py": "print('lint')\n"},
+        ),
+    )
+    return skills_module.view(directory)
+
+
+def test_a_selected_bundle_skill_produces_accompanying_file_targets(
+    library: snippets_module.LibraryView,
+    bundle_skill_library: skills_module.LibraryView,
+    project: Path,
+) -> None:
+    prepared = init_ops.plan(
+        root=project,
+        library=library,
+        manifest=None,
+        requested_ids=(),
+        requested_mode=composition.IMPORT,
+        skill_library=bundle_skill_library,
+        requested_skill_ids=("lint-helper",),
+    )
+    main = prepared.target_for("lint-helper")
+    assert main is not None
+    assert main.frontmatter is not None
+
+    accompanying = prepared.target_for("lint-helper:scripts/lint.py")
+    assert accompanying is not None
+    assert accompanying.block_id is None
+    assert accompanying.frontmatter is None
+    assert accompanying.content == "print('lint')\n"
+    assert accompanying.path == (
+        project / ".claude" / "skills" / "lint-helper" / "scripts" / "lint.py"
+    )
+
+
+def test_applying_writes_the_bundle_skill_and_its_accompanying_files(
+    library: snippets_module.LibraryView,
+    bundle_skill_library: skills_module.LibraryView,
+    project: Path,
+) -> None:
+    prepared = init_ops.plan(
+        root=project,
+        library=library,
+        manifest=None,
+        requested_ids=(),
+        requested_mode=composition.IMPORT,
+        skill_library=bundle_skill_library,
+        requested_skill_ids=("lint-helper",),
+    )
+    result = init_ops.apply(prepared, generated_by="mdcompose test")
+    skill_dir = project / ".claude" / "skills" / "lint-helper"
+    assert (skill_dir / "SKILL.md").exists()
+    assert (skill_dir / "scripts" / "lint.py").read_text(encoding="utf-8") == "print('lint')\n"
+    assert "lint-helper:scripts/lint.py" in result.written
+
+    manifest = manifest_module.load_manifest(result.manifest_path)
+    assert manifest is not None
+    assert manifest.skills[0].files == {"scripts/lint.py": "print('lint')\n"}
+    entry = manifest.files["lint-helper:scripts/lint.py"]
+    assert entry.block_id is None
+    assert entry.managed_block_hash == files.hash_content("print('lint')\n")
+
+
+def test_deselecting_a_bundle_skill_deletes_every_file_and_the_directory(
+    library: snippets_module.LibraryView,
+    bundle_skill_library: skills_module.LibraryView,
+    project: Path,
+) -> None:
+    first = init_ops.plan(
+        root=project,
+        library=library,
+        manifest=None,
+        requested_ids=(),
+        requested_mode=composition.IMPORT,
+        skill_library=bundle_skill_library,
+        requested_skill_ids=("lint-helper",),
+    )
+    init_ops.apply(first, generated_by="mdcompose test")
+    manifest = manifest_module.load_manifest(manifest_module.manifest_path(project))
+    assert manifest is not None
+
+    second = init_ops.plan(
+        root=project,
+        library=library,
+        manifest=manifest,
+        requested_ids=(),
+        requested_mode=composition.IMPORT,
+        skill_library=bundle_skill_library,
+        requested_skill_ids=(),
+    )
+    result = init_ops.apply(second, generated_by="mdcompose test")
+
+    skill_dir = project / ".claude" / "skills" / "lint-helper"
+    assert not skill_dir.exists()
+    assert (project / ".claude" / "skills").exists()
+    assert any("lint.py" in path for path in result.deleted)
+
+
+def test_removing_one_accompanying_file_deletes_only_that_file(
+    library: snippets_module.LibraryView,
+    bundle_skill_library: skills_module.LibraryView,
+    project: Path,
+) -> None:
+    """The skill stays selected, but the library copy drops the script."""
+    first = init_ops.plan(
+        root=project,
+        library=library,
+        manifest=None,
+        requested_ids=(),
+        requested_mode=composition.IMPORT,
+        skill_library=bundle_skill_library,
+        requested_skill_ids=("lint-helper",),
+    )
+    init_ops.apply(first, generated_by="mdcompose test")
+    manifest = manifest_module.load_manifest(manifest_module.manifest_path(project))
+    assert manifest is not None
+
+    slimmed = skills_module.LibraryView(
+        directory=bundle_skill_library.directory,
+        skills=(
+            Skill(id="lint-helper", body="Run the linter.\n", description="Lints the project"),
+        ),
+    )
+    second = init_ops.plan(
+        root=project,
+        library=library,
+        manifest=manifest,
+        requested_ids=(),
+        requested_mode=composition.IMPORT,
+        skill_library=slimmed,
+        requested_skill_ids=("lint-helper",),
+    )
+    result = init_ops.apply(second, generated_by="mdcompose test")
+
+    skill_dir = project / ".claude" / "skills" / "lint-helper"
+    assert (skill_dir / "SKILL.md").exists()
+    assert not (skill_dir / "scripts").exists()
+    assert any("lint.py" in path for path in result.deleted)
+
+
+def test_a_hand_edited_accompanying_file_is_reported_as_drifted(
+    library: snippets_module.LibraryView,
+    bundle_skill_library: skills_module.LibraryView,
+    project: Path,
+) -> None:
+    first = init_ops.plan(
+        root=project,
+        library=library,
+        manifest=None,
+        requested_ids=(),
+        requested_mode=composition.IMPORT,
+        skill_library=bundle_skill_library,
+        requested_skill_ids=("lint-helper",),
+    )
+    init_ops.apply(first, generated_by="mdcompose test")
+    accompanying_path = project / ".claude" / "skills" / "lint-helper" / "scripts" / "lint.py"
+    accompanying_path.write_text("print('hand edited')\n", encoding="utf-8")
+
+    manifest = manifest_module.load_manifest(manifest_module.manifest_path(project))
+    assert manifest is not None
+    second = init_ops.plan(
+        root=project,
+        library=library,
+        manifest=manifest,
+        requested_ids=(),
+        requested_mode=composition.IMPORT,
+        skill_library=bundle_skill_library,
+        requested_skill_ids=("lint-helper",),
+    )
+    drifted_keys = {entry.key for entry in second.drifted}
+    assert "lint-helper:scripts/lint.py" in drifted_keys
+
+
+def test_keeping_a_drifted_accompanying_file_preserves_it_and_updates_the_hash(
+    library: snippets_module.LibraryView,
+    bundle_skill_library: skills_module.LibraryView,
+    project: Path,
+) -> None:
+    first = init_ops.plan(
+        root=project,
+        library=library,
+        manifest=None,
+        requested_ids=(),
+        requested_mode=composition.IMPORT,
+        skill_library=bundle_skill_library,
+        requested_skill_ids=("lint-helper",),
+    )
+    init_ops.apply(first, generated_by="mdcompose test")
+    accompanying_path = project / ".claude" / "skills" / "lint-helper" / "scripts" / "lint.py"
+    accompanying_path.write_text("print('hand edited')\n", encoding="utf-8")
+
+    manifest = manifest_module.load_manifest(manifest_module.manifest_path(project))
+    assert manifest is not None
+    second = init_ops.plan(
+        root=project,
+        library=library,
+        manifest=manifest,
+        requested_ids=(),
+        requested_mode=composition.IMPORT,
+        skill_library=bundle_skill_library,
+        requested_skill_ids=("lint-helper",),
+    )
+    init_ops.apply(
+        second,
+        generated_by="mdcompose test",
+        drift_choices={"lint-helper:scripts/lint.py": init_ops.KEEP},
+    )
+    assert accompanying_path.read_text(encoding="utf-8") == "print('hand edited')\n"
+
+    reread = manifest_module.load_manifest(manifest_module.manifest_path(project))
+    assert reread is not None
+    drift = manifest_module.detect_drift(reread, project)
+    assert all(entry.status == manifest_module.CLEAN for entry in drift)
+
+
+def manifest_with_bundle_skill(root: Path) -> manifest_module.Manifest:
+    """A manifest carrying an embedded bundle skill this machine never composed."""
+    path = manifest_module.manifest_path(root)
+    path.write_text(
+        json.dumps(
+            {
+                "schema_version": manifest_module.SCHEMA_VERSION,
+                "generated_by": "mdcompose 0.2.0",
+                "generated_at": "2026-09-14T00:00:00Z",
+                "detected_stack": [],
+                "snippets": [],
+                "skills": [
+                    {
+                        "id": "lint-helper",
+                        "position": 0,
+                        "content": "Run the linter.\n",
+                        "files": {"scripts/lint.py": "print('lint')\n"},
+                    }
+                ],
+                "files": {
+                    "lint-helper": {
+                        "path": ".claude/skills/lint-helper/SKILL.md",
+                        "mode": "copy",
+                        "managed_block_hash": "does-not-matter-file-is-missing",
+                        "block_id": managed_block.SKILL_MANAGED_BLOCK,
+                    },
+                    "lint-helper:scripts/lint.py": {
+                        "path": ".claude/skills/lint-helper/scripts/lint.py",
+                        "mode": "copy",
+                        "managed_block_hash": "does-not-matter-file-is-missing",
+                    },
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    loaded = manifest_module.load_manifest(path)
+    assert loaded is not None
+    return loaded
+
+
+def test_a_fresh_clone_composes_a_bundle_skill_with_its_accompanying_files(
+    library: snippets_module.LibraryView, project: Path
+) -> None:
+    manifest = manifest_with_bundle_skill(project)
+    prepared = init_ops.plan(
+        root=project,
+        library=library,
+        manifest=manifest,
+        requested_mode=composition.IMPORT,
+    )
+    assert prepared.from_embedded is True
+    accompanying = prepared.target_for("lint-helper:scripts/lint.py")
+    assert accompanying is not None
+    assert accompanying.content == "print('lint')\n"
+    assert any(target.key == "lint-helper:scripts/lint.py" for target in prepared.targets)

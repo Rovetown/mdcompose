@@ -51,6 +51,13 @@ ContentOption = Annotated[
         "--content", help="Replacement file contents. Supplying this skips the editor."
     ),
 ]
+FileOption = Annotated[
+    str | None,
+    typer.Option(
+        "--file",
+        help="Which file to edit, relative to the skill's own directory. Defaults to SKILL.md.",
+    ),
+]
 YesOption = Annotated[bool, typer.Option("--yes", "-y", help="Answer yes to every confirmation.")]
 OnCollisionOption = Annotated[
     str | None,
@@ -114,7 +121,8 @@ def list_skills(
         row_id = skill.id.ljust(id_width)
         row_name = skill.display_name.ljust(name_width)
         description = "" if skill.description is None else skill.description
-        output.info(f"  {row_id}  {row_name}  {description}")
+        marker = " [bundle]" if skill.is_bundle else ""
+        output.info(f"  {row_id}  {row_name}  {description}{marker}")
 
 
 def _as_json(
@@ -131,6 +139,7 @@ def _as_json(
                     "tags": list(skill.tags),
                     "stack_signals": list(skill.stack_signals),
                     "category": skill.category,
+                    "is_bundle": skill.is_bundle,
                 }
                 for skill in matched
             ],
@@ -145,38 +154,56 @@ def edit_skill(
     context: typer.Context,
     skill_id: Annotated[str, typer.Argument(help="The skill to edit.")],
     content: ContentOption = None,
+    file: FileOption = None,
     quiet: QuietOption = False,
     no_colour: NoColourOption = False,
 ) -> None:
     """Open a skill in the configured editor, or replace its contents directly.
 
     The result is validated before it is installed, so a broken edit leaves
-    the existing skill exactly as it was.
+    the existing skill exactly as it was. ``--file`` targets an accompanying
+    file of a directory-shaped skill instead of ``SKILL.md``; naming one
+    against a skill with no accompanying files is refused up front.
     """
     output = output_for(context, quiet=quiet, no_colour=no_colour)
     library = resolve_library()
     skill = library.require(skill_id)
+    if file is not None and file != skills_module.SKILL_MD_FILENAME and not skill.is_bundle:
+        raise AttentionError(f"skill '{skill_id}' has no accompanying files")
 
     if content is not None:
-        skill_library_ops.replace_body(library, skill_id, content)
+        skill_library_ops.replace_body(library, skill_id, content, relative=file)
         output.info(f"wrote {skill_id}")
         return
 
-    if skill.path is None:
-        raise AttentionError(f"skill '{skill_id}' has no file on disk to edit")
-    edited = _edit_in_editor(skill.path)
+    edited = _edit_in_editor(_edit_target_path(skill, file))
     if edited is None:
         output.info(f"{skill_id} unchanged")
         return
-    skill_library_ops.replace_body(library, skill_id, edited)
+    skill_library_ops.replace_body(library, skill_id, edited, relative=file)
     output.info(f"wrote {skill_id}")
+
+
+def _edit_target_path(skill: skills_module.Skill, file: str | None) -> Path:
+    """Where to read the current content from for an interactive edit.
+
+    A new accompanying file named by ``--file`` has no path yet; that is left
+    to ``_edit_in_editor``, which treats a nonexistent path as empty content.
+    """
+    if file is None or file == skills_module.SKILL_MD_FILENAME:
+        if skill.path is None:
+            raise AttentionError(f"skill '{skill.id}' has no file on disk to edit")
+        return skill.path
+    assert skill.path is not None  # guaranteed by the is_bundle check in edit_skill
+    return skill.path.parent / file
 
 
 def _edit_in_editor(path: Path) -> str | None:
     """Open a copy in the editor and return the result, or None if unchanged.
 
     A copy rather than the file itself, so an edit that fails validation
-    cannot leave the library holding it.
+    cannot leave the library holding it. A path that does not exist yet (a
+    new accompanying file) starts from empty content rather than refusing.
     """
     editor = os.environ.get("VISUAL") or os.environ.get("EDITOR")
     if not editor:
@@ -184,7 +211,7 @@ def _edit_in_editor(path: Path) -> str | None:
             "no editor configured. Set VISUAL or EDITOR, or pass --content to "
             "supply the new contents directly."
         )
-    original = files.read_text(path)
+    original = files.read_text(path) if files.path_exists(path) else ""
     with tempfile.TemporaryDirectory() as scratch:
         draft = Path(scratch) / path.name
         files.write_text(draft, original)
@@ -294,11 +321,17 @@ def _validated_resolution(candidate: str) -> skill_library_ops.Resolution:
 
 
 def _show_difference(output: OutputContext, collision: skill_library_ops.Collision) -> None:
-    """Show both versions, so the choice is made with the content in view."""
-    output.info(f"  skill library copy of '{collision.skill_id}':")
-    output.content_indented(collision.local)
-    output.info(f"  embedded copy of '{collision.skill_id}':")
-    output.content_indented(collision.embedded)
+    """Show both versions of every differing file, so the choice is made with
+    the content in view. A bundle skill's collision names each differing
+    accompanying file; a plain skill's names none, since there is only ever
+    the one file to show.
+    """
+    for path in collision.differing_paths:
+        label = "" if path == skills_module.SKILL_MD_FILENAME else f" ({path})"
+        output.info(f"  skill library copy of '{collision.skill_id}'{label}:")
+        output.content_indented(collision.local.get(path, ""))
+        output.info(f"  embedded copy of '{collision.skill_id}'{label}:")
+        output.content_indented(collision.embedded.get(path, ""))
 
 
 def _report_adoption(output: OutputContext, result: skill_library_ops.AdoptResult) -> None:

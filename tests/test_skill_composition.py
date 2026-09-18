@@ -83,3 +83,17 @@ def test_content_after_the_block_survives_a_frontmatter_regeneration(tmp_path: P
 def test_skill_path_lives_under_dot_claude_skills(tmp_path: Path) -> None:
     path = skill_composition.skill_path(tmp_path, "code-review")
     assert path == tmp_path / ".claude" / "skills" / "code-review" / "SKILL.md"
+
+
+def test_an_accompanying_file_is_written_at_its_own_path(tmp_path: Path) -> None:
+    target = tmp_path / "scripts" / "lint.py"
+    changed = skill_composition.apply_accompanying_file(target, "print('lint')\n")
+    assert changed is True
+    assert target.read_text(encoding="utf-8") == "print('lint')\n"
+
+
+def test_a_repeat_accompanying_file_write_with_no_change_is_a_no_op(tmp_path: Path) -> None:
+    target = tmp_path / "scripts" / "lint.py"
+    skill_composition.apply_accompanying_file(target, "print('lint')\n")
+    changed = skill_composition.apply_accompanying_file(target, "print('lint')\n")
+    assert changed is False

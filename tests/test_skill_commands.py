@@ -481,3 +481,165 @@ def test_adopt_from_a_manifest_with_a_bom_and_crlf(
 
 def test_top_level_help_lists_skill_group(invoke: Invoke) -> None:
     assert "skill" in invoke("--help").out
+
+
+# --- directory-shaped (bundle) skills ---
+
+
+@pytest.fixture
+def bundle_library(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """A configured library holding one bundle skill and one plain one."""
+    config_directory = tmp_path / "config"
+    config_directory.mkdir(parents=True)
+    directory = config_directory / "skills"
+    directory.mkdir()
+    (directory / "code-review.md").write_text(
+        "---\ntitle: Code review\n---\n\n" + REVIEW_BODY, encoding="utf-8"
+    )
+    bundle_dir = directory / "lint-helper"
+    bundle_dir.mkdir()
+    (bundle_dir / "SKILL.md").write_bytes(
+        b"---\ndescription: Lints the project\n---\n\nRun the linter.\n"
+    )
+    (bundle_dir / "scripts").mkdir()
+    (bundle_dir / "scripts" / "lint.py").write_bytes(b"print('lint')\n")
+    monkeypatch.setattr(platform_module, "config_dir", lambda: config_directory)
+    project = tmp_path / "project"
+    project.mkdir()
+    monkeypatch.chdir(project)
+    return directory
+
+
+def test_list_marks_a_bundle_skill(invoke: Invoke, bundle_library: Path) -> None:
+    result = invoke("skill", "list")
+    lines = {ln.split()[0]: ln for ln in result.out.splitlines() if ln.strip()}
+    assert "[bundle]" in lines["lint-helper"]
+    assert "[bundle]" not in lines["code-review"]
+
+
+def test_list_json_marks_a_bundle_skill(invoke: Invoke, bundle_library: Path) -> None:
+    payload = json.loads(invoke("skill", "list", "--json").out)
+    by_id = {entry["id"]: entry for entry in payload["skills"]}
+    assert by_id["lint-helper"]["is_bundle"] is True
+    assert by_id["code-review"]["is_bundle"] is False
+
+
+def test_edit_targets_an_accompanying_file_by_default_skill_md(
+    invoke: Invoke, bundle_library: Path
+) -> None:
+    result = invoke(
+        "skill", "edit", "lint-helper", "--content", "---\ndescription: New\n---\n\nNew body.\n"
+    )
+    assert result.code == EXIT_OK
+    reloaded = skills_module.read_bundle(bundle_library / "lint-helper")
+    assert reloaded.body == "New body.\n"
+    assert reloaded.files == {"scripts/lint.py": "print('lint')\n"}
+
+
+def test_edit_writes_an_existing_accompanying_file(invoke: Invoke, bundle_library: Path) -> None:
+    result = invoke(
+        "skill",
+        "edit",
+        "lint-helper",
+        "--file",
+        "scripts/lint.py",
+        "--content",
+        "print('updated')\n",
+    )
+    assert result.code == EXIT_OK
+    reloaded = skills_module.read_bundle(bundle_library / "lint-helper")
+    assert reloaded.files == {"scripts/lint.py": "print('updated')\n"}
+    assert reloaded.body == "Run the linter.\n"
+
+
+def test_edit_creates_a_new_accompanying_file(invoke: Invoke, bundle_library: Path) -> None:
+    result = invoke(
+        "skill",
+        "edit",
+        "lint-helper",
+        "--file",
+        "scripts/new.py",
+        "--content",
+        "print('new')\n",
+    )
+    assert result.code == EXIT_OK
+    reloaded = skills_module.read_bundle(bundle_library / "lint-helper")
+    assert reloaded.files["scripts/new.py"] == "print('new')\n"
+    assert reloaded.files["scripts/lint.py"] == "print('lint')\n"
+
+
+def test_edit_refuses_a_named_file_on_a_plain_skill(
+    invoke: Invoke, bundle_library: Path
+) -> None:
+    result = invoke(
+        "skill", "edit", "code-review", "--file", "other.md", "--content", "x"
+    )
+    assert result.code == EXIT_ATTENTION
+    assert "no accompanying files" in result.err
+
+
+def test_remove_deletes_a_bundle_skill_entirely(invoke: Invoke, bundle_library: Path) -> None:
+    result = invoke("skill", "remove", "lint-helper", "--yes")
+    assert result.code == EXIT_OK
+    assert not (bundle_library / "lint-helper").exists()
+    assert (bundle_library / "code-review.md").exists()
+
+
+def test_adopt_writes_a_bundle_skill_into_an_empty_library(
+    invoke: Invoke, empty_library: Path, tmp_path: Path
+) -> None:
+    write_manifest(
+        tmp_path / "project",
+        [
+            {
+                "id": "lint-helper",
+                "position": 0,
+                "content": "Run the linter.\n",
+                "files": {"scripts/lint.py": "print('lint')\n"},
+            }
+        ],
+    )
+    result = invoke("skill", "adopt")
+    assert result.code == EXIT_OK
+    reloaded = skills_module.read_bundle(empty_library / "lint-helper")
+    assert reloaded.body == "Run the linter.\n"
+    assert reloaded.files == {"scripts/lint.py": "print('lint')\n"}
+
+
+def test_adopt_reports_a_bundle_skill_matching_every_file_as_already_present(
+    invoke: Invoke, bundle_library: Path, tmp_path: Path
+) -> None:
+    write_manifest(
+        tmp_path / "project",
+        [
+            {
+                "id": "lint-helper",
+                "position": 0,
+                "content": "Run the linter.\n",
+                "files": {"scripts/lint.py": "print('lint')\n"},
+            }
+        ],
+    )
+    result = invoke("skill", "adopt")
+    assert result.code == EXIT_OK
+    assert "already present" in result.out
+
+
+def test_adopt_collision_confined_to_one_accompanying_file_names_it(
+    invoke: Invoke, bundle_library: Path, tmp_path: Path
+) -> None:
+    write_manifest(
+        tmp_path / "project",
+        [
+            {
+                "id": "lint-helper",
+                "position": 0,
+                "content": "Run the linter.\n",
+                "files": {"scripts/lint.py": "print('different')\n"},
+            }
+        ],
+    )
+    result = invoke("skill", "adopt")
+    assert result.code == EXIT_ATTENTION
+    assert "scripts/lint.py" in result.out
+    assert "SKILL.md" not in result.out
