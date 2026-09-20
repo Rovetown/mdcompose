@@ -41,6 +41,18 @@ function say(outcome: ActionOutcome, controller: Controller): void {
   }
 }
 
+// Actions that change files run only in a workspace the user has trusted. A
+// repository the user has not trusted must not be able to make the extension write
+// anything, so the buttons are hidden and the commands refuse.
+function trusted(): boolean {
+  if (vscode.workspace.isTrusted) return true;
+  void vscode.window.showWarningMessage(
+    "This workspace is not trusted, so mdcompose will not change any files here. " +
+      "Trust the workspace to use this action.",
+  );
+  return false;
+}
+
 export function registerActions(
   context: vscode.ExtensionContext,
   controller: Controller,
@@ -101,6 +113,7 @@ export function registerActions(
   }
 
   async function remove(kind: LibraryKind, row: Row | undefined): Promise<void> {
+    if (!trusted()) return;
     const entry = await chooseEntry(kind, row);
     if (entry === undefined) return;
     const title = entry.title === "" ? entry.id : entry.title;
@@ -117,6 +130,7 @@ export function registerActions(
   }
 
   async function adopt(kind: LibraryKind): Promise<void> {
+    if (!trusted()) return;
     const folder = await chooseFolder();
     if (folder === undefined) return;
     const run = controller.runIn(folder);
@@ -147,6 +161,7 @@ export function registerActions(
   }
 
   async function reapply(): Promise<void> {
+    if (!trusted()) return;
     const folder = await chooseFolder();
     if (folder === undefined) return;
     const run = controller.runIn(folder);
@@ -179,6 +194,7 @@ export function registerActions(
   }
 
   function changeSelection(): Promise<void> {
+    if (!trusted()) return Promise.resolve();
     return chooseFolder().then((folder) => {
       if (folder === undefined) return;
       if (!controller.isReady()) {

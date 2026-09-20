@@ -49,6 +49,22 @@ list and health commands), so trying it against your real library changes
 nothing. If `mdcompose` is not on your search path, set `mdcompose.executablePath`
 in your user settings; a workspace cannot set it.
 
+## Try it in a sandbox
+
+To try every action without touching your real library or projects:
+
+    bun run build
+    MDCOMPOSE_EXE=<path to mdcompose> bun run sandbox
+
+This builds `.sandbox/` (ignored by git, safe to delete) with a scratch mdcompose
+library, a scratch home, and two projects, `alpha` (composed) and `beta` (not
+composed), then opens a new editor window on both with the extension loaded. That
+window uses its own editor profile and the scratch environment, so `Adopt`,
+`Remove`, and `Reapply` only ever change files under `.sandbox/`. Add `--trusted`
+to skip the workspace trust prompt, or leave it off and choose "No" to see
+Restricted Mode: the views still read, and the buttons that change files are
+hidden and the commands refuse.
+
 The editor tests never use your real library. `test/run.mjs` builds a scratch
 home and configuration directory and starts the editor with the environment
 variables that move them.

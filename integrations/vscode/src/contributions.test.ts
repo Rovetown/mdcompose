@@ -152,6 +152,41 @@ test("buttons that change something appear only once a suitable mdcompose is rea
   }
 });
 
+test("buttons that change something are hidden in a workspace that is not trusted", () => {
+  const changing = [
+    "mdcompose.removeSnippet",
+    "mdcompose.removeSkill",
+    "mdcompose.adoptSnippets",
+    "mdcompose.adoptSkills",
+    "mdcompose.reapply",
+    "mdcompose.changeSelection",
+  ];
+  for (const items of Object.values(contributes.menus)) {
+    for (const item of items.filter((entry) => changing.includes(entry.command))) {
+      assert.match(item.when ?? "", /isWorkspaceTrusted/, item.command);
+    }
+  }
+});
+
+test("the extension declares limited support for a workspace that is not trusted", () => {
+  const capabilities = (
+    JSON.parse(readFileSync(join(root, "package.json"), "utf8")) as {
+      capabilities?: { untrustedWorkspaces?: { supported?: unknown } };
+    }
+  ).capabilities;
+  assert.equal(capabilities?.untrustedWorkspaces?.supported, "limited");
+});
+
+test("every action that changes something checks that the workspace is trusted", () => {
+  const source = sourceOf("actions.ts");
+  for (const name of ["remove", "adopt", "reapply", "changeSelection"]) {
+    const start = source.indexOf(`function ${name}(`);
+    assert.ok(start >= 0, `${name} not found`);
+    const opening = source.slice(start, start + 200);
+    assert.match(opening, /if \(!trusted\(\)\) return/, `${name} does not check trust`);
+  }
+});
+
 test("there is no action that creates a snippet or a skill", () => {
   for (const command of contributes.commands) {
     assert.doesNotMatch(command.command, /create|new|add(?!opt)/i, command.command);

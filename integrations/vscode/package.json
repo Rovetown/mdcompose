@@ -185,22 +185,22 @@
       "view/title": [
         {
           "command": "mdcompose.adoptSnippets",
-          "when": "view == mdcompose.snippets && mdcompose.state == 'ready'",
+          "when": "view == mdcompose.snippets && mdcompose.state == 'ready' && isWorkspaceTrusted",
           "group": "navigation@1"
         },
         {
           "command": "mdcompose.adoptSkills",
-          "when": "view == mdcompose.skills && mdcompose.state == 'ready'",
+          "when": "view == mdcompose.skills && mdcompose.state == 'ready' && isWorkspaceTrusted",
           "group": "navigation@1"
         },
         {
           "command": "mdcompose.reapply",
-          "when": "view == mdcompose.project && mdcompose.state == 'ready'",
+          "when": "view == mdcompose.project && mdcompose.state == 'ready' && isWorkspaceTrusted",
           "group": "navigation@1"
         },
         {
           "command": "mdcompose.changeSelection",
-          "when": "view == mdcompose.project && mdcompose.state == 'ready'",
+          "when": "view == mdcompose.project && mdcompose.state == 'ready' && isWorkspaceTrusted",
           "group": "navigation@2"
         },
         {
@@ -217,7 +217,7 @@
         },
         {
           "command": "mdcompose.removeSnippet",
-          "when": "view == mdcompose.snippets && viewItem == snippet && mdcompose.state == 'ready'",
+          "when": "view == mdcompose.snippets && viewItem == snippet && mdcompose.state == 'ready' && isWorkspaceTrusted",
           "group": "inline@2"
         },
         {
@@ -237,7 +237,7 @@
         },
         {
           "command": "mdcompose.removeSkill",
-          "when": "view == mdcompose.skills && viewItem == skill && mdcompose.state == 'ready'",
+          "when": "view == mdcompose.skills && viewItem == skill && mdcompose.state == 'ready' && isWorkspaceTrusted",
           "group": "inline@2"
         },
         {
@@ -287,11 +287,12 @@
     "build": "esbuild src/extension.ts --bundle --outfile=dist/extension.js --platform=node --target=node20 --format=cjs --external:vscode",
     "typecheck": "tsc --noEmit",
     "lint": "oxlint --type-aware",
-    "format": "oxfmt --check src test",
-    "format:write": "oxfmt src test",
+    "format": "oxfmt --check src test scripts",
+    "format:write": "oxfmt src test scripts",
     "test": "esbuild \"src/**/*.test.ts\" --bundle --platform=node --target=node20 --format=cjs --outdir=.test-build --outbase=src --log-level=warning && node --test \".test-build/**/*.test.js\"",
     "test:editor": "node test/run.mjs",
-    "package": "vsce package --no-dependencies"
+    "package": "vsce package --no-dependencies",
+    "sandbox": "node scripts/sandbox.mjs"
   },
   "devDependencies": {
     "@types/node": "20.19.43",
@@ -304,5 +305,11 @@
     "oxlint": "1.83.0",
     "oxlint-tsgolint": "7.0.2002",
     "typescript": "7.0.2"
+  },
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": "limited",
+      "description": "In a workspace you have not trusted, mdcompose shows your libraries and the project's state but does not run anything that changes files."
+    }
   }
 }
