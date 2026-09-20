@@ -157,6 +157,8 @@ are fully covered.
 
 - [ ] Build editor and IDE integrations that let a user manage their content and snippet library without leaving their usual environment. The evaluation is done and recorded in [`docs/editor-integrations.md`](docs/editor-integrations.md): six editors screened for cost, licensing, and extension capability, with a build order. Short version: one VS Code extension covers three editors (VS Code, VSCodium, and Cursor, via Open VSX plus the Microsoft Marketplace), JetBrains and Neovim follow, Zed, Helix, Sublime Text, Windsurf, Kiro, and Antigravity are removed for now (their users run the CLI or TUI from a terminal), and JSON Schemas for `mdcompose.lock` and snippet frontmatter reach every editor cheaply. Each integration is its own OpenSpec change, started by hand; the TUI is tracked separately below.
 
+- [ ] Think about using Bun in GitHub Actions, first for the integration workflows and possibly elsewhere JavaScript is built, for speed. Shape if adopted: `oven-sh/setup-bun` pinned to a commit SHA with the Bun version read from `packageManager` in `package.json`, and `bun ci` (equivalent to `bun install --frozen-lockfile`) against a committed `bun.lock`. Compare real timings against `actions/setup-node` plus npm before deciding, and check that `vsce`, `ovsx`, and the editor test runner work under Bun first. The Python jobs are unaffected because they use uv.
+
 ### TUI (terminal user interface)
 
 Deferred branch. Not needed to make the CLI read well, which it already does;
