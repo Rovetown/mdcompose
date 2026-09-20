@@ -1,0 +1,14 @@
+{
+  "categories": {
+    "correctness": "error"
+  },
+  "overrides": [
+    {
+      "files": ["**/*.test.ts"],
+      "rules": {
+        "typescript/no-floating-promises": "off"
+      }
+    }
+  ],
+  "ignorePatterns": ["dist", "node_modules", ".vscode-test"]
+}

@@ -1,0 +1,49 @@
+{
+  "name": "mdcompose",
+  "displayName": "mdcompose",
+  "description": "Browse and manage your mdcompose snippet and skill libraries from the sidebar.",
+  "version": "0.0.0",
+  "publisher": "publisher-tbd",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Rovetown/mdcompose.git",
+    "directory": "integrations/vscode"
+  },
+  "bugs": {
+    "url": "https://github.com/Rovetown/mdcompose/issues"
+  },
+  "homepage": "https://github.com/Rovetown/mdcompose/tree/main/integrations/vscode",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "main": "./dist/extension.js",
+  "activationEvents": [],
+  "contributes": {},
+  "packageManager": "bun@1.4.2",
+  "scripts": {
+    "build": "esbuild src/extension.ts --bundle --outfile=dist/extension.js --platform=node --target=node20 --format=cjs --external:vscode",
+    "typecheck": "tsc --noEmit",
+    "lint": "oxlint --type-aware",
+    "format": "oxfmt --check src test",
+    "format:write": "oxfmt src test",
+    "test": "node --test \"src/**/*.test.ts\"",
+    "test:editor": "node test/run.mjs",
+    "package": "vsce package --no-dependencies"
+  },
+  "devDependencies": {
+    "@types/node": "20.19.43",
+    "@types/vscode": "1.90.0",
+    "@vscode/test-electron": "3.1.0",
+    "@vscode/vsce": "4.0.0",
+    "esbuild": "0.28.2",
+    "ovsx": "1.2.0",
+    "oxfmt": "0.68.0",
+    "oxlint": "1.83.0",
+    "oxlint-tsgolint": "7.0.2002",
+    "typescript": "7.0.2"
+  }
+}

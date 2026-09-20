@@ -49,6 +49,16 @@ line's release workflow starts on any tag that does, so a tag such as
 `vscode-v0.1.0` would start a release of the command line. Command line tags stay
 `v<version>`.
 
+## Commit types
+
+The command line's release is computed from commit types: `feat` raises the minor
+version and `fix` raises the patch version the next time a release is cut. A
+change that only touches `integrations/` must therefore not use those types, or it
+would bump the command line for nothing. Use `chore(<editor>)`, `build(<editor>)`,
+`test(<editor>)`, or `docs(<editor>)` for integration work, for example
+`chore(vscode): add the project view`. Each integration keeps its own changelog
+and versions itself.
+
 Publishing is always started by hand and never runs on a push. Registry tokens
 live in repository secrets or the maintainer's own environment, never in the
 repository.
