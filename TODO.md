@@ -9,6 +9,37 @@ Everything genuinely open or deliberately deferred to a future trigger (a
 date, a second maintainer). Scorecard reasoning behind the deferred items is
 in [`docs/scorecard.md`](docs/scorecard.md).
 
+### Editor integrations: where to resume
+
+Start the next session here. The VS Code extension (`integrations/vscode/`) is
+built and committed locally; 7.1 is the last open task in the `vscode-extension`
+OpenSpec change. Plan and reasoning: [`docs/editor-integrations.md`](docs/editor-integrations.md).
+
+1. **Finish task 7.1: VSCodium and Cursor.** Needs the maintainer to install
+   both. Then run `npm run check:package` with `CODE_EXE` set to each editor,
+   and confirm the lowest supported editor version (`^1.90.0` is provisional).
+   VS Code 1.134 on Windows is already verified.
+2. **Publisher id and Open VSX namespace.** Both unknown, so the placeholder
+   `publisher-tbd` is in use; replace it with `npm run set-publisher -- <id>`
+   once chosen. Prefer the same id on both registries.
+3. **Microsoft Marketplace.** Deferred: needs an Azure DevOps organization
+   (authentication is Microsoft Entra ID, since global personal access tokens
+   retire on 2026-12-01).
+4. **Release and CI change** (its own OpenSpec change, started by hand): an
+   `integration-vscode.yml` workflow, `changes` job flags, the
+   `integration-<editor>-v<version>` tag guard, and a manual publish workflow.
+   Design notes are in the "Planned: editor integrations" section of
+   [`docs/ci-cd.md`](docs/ci-cd.md).
+5. **Later changes, proposals only:** `integration-json-schemas`,
+   `jetbrains-plugin`, `neovim-plugin`.
+
+Also open, not tied to the extension: the local commits are unpushed (push only
+when told), and seven Markdown files the maintainer edited by hand stay
+uncommitted for their own PR. Deferred items D#4 (TUI), D#5 (GitHub repo and
+accounts release dry-run), and D#6 (upstream `windowsHide` PR to
+claude-mem-lite and sage) are tracked in claude-mem-lite; connecting
+codspeed.io and the demo GIF are small loose ends.
+
 ### Deferred
 
 - **OpenSSF Scorecard: Maintained check.** Scores 0 regardless of activity
