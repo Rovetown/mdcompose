@@ -1,7 +1,8 @@
-node_modules/
-dist/
 *.vsix
-.vscode-test/
-.ud/
 .ex/
+.scratch/
 .test-build/
+.ud/
+.vscode-test/
+dist/
+node_modules/

@@ -10,6 +10,15 @@ export function sample(name: string): unknown {
   return JSON.parse(readFileSync(file, "utf8")) as unknown;
 }
 
+// True when every character is plain ASCII. Written without a regular expression
+// over control characters, which the linter rejects.
+export function isAscii(text: string): boolean {
+  for (let index = 0; index < text.length; index += 1) {
+    if (text.charCodeAt(index) > 127) return false;
+  }
+  return true;
+}
+
 // A scratch directory that the caller removes with `cleanup`.
 export function scratch(prefix = "mdc-adapter-"): { dir: string; cleanup: () => void } {
   const dir = mkdtempSync(join(tmpdir(), prefix));

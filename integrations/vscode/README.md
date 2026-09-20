@@ -40,6 +40,19 @@ To fall back to npm, delete `bun.lock`, run `npm install`, change the
 `packageManager` field in `package.json`, and use `npm run <script>` in place of
 `bun run <script>`. Keep exactly one lockfile.
 
+## Try it
+
+Open `integrations/vscode` in VS Code and press F5. A second window opens with
+the extension loaded. Click the mdcompose icon in its Activity Bar to see the
+Snippets, Skills, and Project views. Everything the views run is read-only (the
+list and health commands), so trying it against your real library changes
+nothing. If `mdcompose` is not on your search path, set `mdcompose.executablePath`
+in your user settings; a workspace cannot set it.
+
+The editor tests never use your real library. `test/run.mjs` builds a scratch
+home and configuration directory and starts the editor with the environment
+variables that move them.
+
 ## Supported editors
 
 One package targets VS Code, VSCodium, and Cursor. The minimum editor version is

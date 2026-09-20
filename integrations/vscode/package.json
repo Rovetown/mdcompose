@@ -22,7 +22,136 @@
   ],
   "main": "./dist/extension.js",
   "activationEvents": [],
-  "contributes": {},
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "mdcompose",
+          "title": "mdcompose",
+          "icon": "media/activity-bar.svg"
+        }
+      ]
+    },
+    "views": {
+      "mdcompose": [
+        {
+          "id": "mdcompose.snippets",
+          "name": "Snippets"
+        },
+        {
+          "id": "mdcompose.skills",
+          "name": "Skills"
+        },
+        {
+          "id": "mdcompose.project",
+          "name": "Project"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "mdcompose.snippets",
+        "contents": "mdcompose was not found. The extension checked the mdcompose.executablePath setting and the executable search path.\n[Set the path](command:workbench.action.openSettings?%5B%22mdcompose.executablePath%22%5D)\n[Install mdcompose](https://pypi.org/project/mdcompose/)\n[Try again](command:mdcompose.refresh)\n[Show details](command:mdcompose.showOutput)",
+        "when": "mdcompose.state == 'notFound'"
+      },
+      {
+        "view": "mdcompose.snippets",
+        "contents": "The path in the mdcompose.executablePath setting cannot be used.\n[Set the path](command:workbench.action.openSettings?%5B%22mdcompose.executablePath%22%5D)\n[Try again](command:mdcompose.refresh)\n[Show details](command:mdcompose.showOutput)",
+        "when": "mdcompose.state == 'badSetting'"
+      },
+      {
+        "view": "mdcompose.snippets",
+        "contents": "The installed mdcompose is older than the 0.3.0 this extension needs.\n[Install mdcompose](https://pypi.org/project/mdcompose/)\n[Try again](command:mdcompose.refresh)\n[Show details](command:mdcompose.showOutput)",
+        "when": "mdcompose.state == 'tooOld'"
+      },
+      {
+        "view": "mdcompose.snippets",
+        "contents": "mdcompose could not be started or did not answer as expected.\n[Try again](command:mdcompose.refresh)\n[Show details](command:mdcompose.showOutput)",
+        "when": "mdcompose.state == 'error'"
+      },
+      {
+        "view": "mdcompose.skills",
+        "contents": "mdcompose was not found. The extension checked the mdcompose.executablePath setting and the executable search path.\n[Set the path](command:workbench.action.openSettings?%5B%22mdcompose.executablePath%22%5D)\n[Install mdcompose](https://pypi.org/project/mdcompose/)\n[Try again](command:mdcompose.refresh)\n[Show details](command:mdcompose.showOutput)",
+        "when": "mdcompose.state == 'notFound'"
+      },
+      {
+        "view": "mdcompose.skills",
+        "contents": "The path in the mdcompose.executablePath setting cannot be used.\n[Set the path](command:workbench.action.openSettings?%5B%22mdcompose.executablePath%22%5D)\n[Try again](command:mdcompose.refresh)\n[Show details](command:mdcompose.showOutput)",
+        "when": "mdcompose.state == 'badSetting'"
+      },
+      {
+        "view": "mdcompose.skills",
+        "contents": "The installed mdcompose is older than the 0.3.0 this extension needs.\n[Install mdcompose](https://pypi.org/project/mdcompose/)\n[Try again](command:mdcompose.refresh)\n[Show details](command:mdcompose.showOutput)",
+        "when": "mdcompose.state == 'tooOld'"
+      },
+      {
+        "view": "mdcompose.skills",
+        "contents": "mdcompose could not be started or did not answer as expected.\n[Try again](command:mdcompose.refresh)\n[Show details](command:mdcompose.showOutput)",
+        "when": "mdcompose.state == 'error'"
+      },
+      {
+        "view": "mdcompose.project",
+        "contents": "mdcompose was not found. The extension checked the mdcompose.executablePath setting and the executable search path.\n[Set the path](command:workbench.action.openSettings?%5B%22mdcompose.executablePath%22%5D)\n[Install mdcompose](https://pypi.org/project/mdcompose/)\n[Try again](command:mdcompose.refresh)\n[Show details](command:mdcompose.showOutput)",
+        "when": "mdcompose.state == 'notFound'"
+      },
+      {
+        "view": "mdcompose.project",
+        "contents": "The path in the mdcompose.executablePath setting cannot be used.\n[Set the path](command:workbench.action.openSettings?%5B%22mdcompose.executablePath%22%5D)\n[Try again](command:mdcompose.refresh)\n[Show details](command:mdcompose.showOutput)",
+        "when": "mdcompose.state == 'badSetting'"
+      },
+      {
+        "view": "mdcompose.project",
+        "contents": "The installed mdcompose is older than the 0.3.0 this extension needs.\n[Install mdcompose](https://pypi.org/project/mdcompose/)\n[Try again](command:mdcompose.refresh)\n[Show details](command:mdcompose.showOutput)",
+        "when": "mdcompose.state == 'tooOld'"
+      },
+      {
+        "view": "mdcompose.project",
+        "contents": "mdcompose could not be started or did not answer as expected.\n[Try again](command:mdcompose.refresh)\n[Show details](command:mdcompose.showOutput)",
+        "when": "mdcompose.state == 'error'"
+      }
+    ],
+    "commands": [
+      {
+        "command": "mdcompose.refresh",
+        "title": "Refresh",
+        "category": "mdcompose",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "mdcompose.showOutput",
+        "title": "Show Details",
+        "category": "mdcompose"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "mdcompose.refresh",
+          "when": "view == mdcompose.snippets || view == mdcompose.skills || view == mdcompose.project",
+          "group": "navigation"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "mdcompose",
+      "properties": {
+        "mdcompose.executablePath": {
+          "type": "string",
+          "default": "",
+          "scope": "machine",
+          "markdownDescription": "Full path to the `mdcompose` executable. Leave empty to use the one on the executable search path. This can be set only in user or machine settings, never by a workspace."
+        },
+        "mdcompose.timeoutSeconds": {
+          "type": "number",
+          "default": 30,
+          "minimum": 1,
+          "maximum": 600,
+          "scope": "machine",
+          "markdownDescription": "How long a single `mdcompose` command may run before it is stopped."
+        }
+      }
+    }
+  },
   "packageManager": "bun@1.4.2",
   "scripts": {
     "build": "esbuild src/extension.ts --bundle --outfile=dist/extension.js --platform=node --target=node20 --format=cjs --external:vscode",
