@@ -118,7 +118,7 @@ GitHub Actions are a supply-chain surface too.
 The CI matrix is `3.11` through `3.14` on three operating systems.
 Keeping it current has two halves:
 
-- **Adding a new Python.** When 3.15 reaches its first release candidate, add `"3.15"` to the matrix.
+- **Adding a new Python.** When 3.15 is final and `pyyaml` ships a 3.15 wheel, add `"3.15"` to the matrix (see the Deferred list in `TODO.md`).
   Renovate does not do this for a raw matrix string; the hand edit is a two-minute job annually and is not worth a regex manager.
 - **Dropping an end-of-life Python.** 3.11 reaches end of life in October 2027.
   The floor is a policy choice (see the decisions log in [TODO.md](../TODO.md)): raise `requires-python`, `[tool.ruff] target-version`, and the matrix in one commit around then. `python-eol.yml` already opens a maintenance issue monthly once the current floor is within 60 days of its `endoflife.date` entry.
