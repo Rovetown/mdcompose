@@ -26,10 +26,14 @@ in [`docs/scorecard.md`](docs/scorecard.md).
   proportion to the risk for two small parsers; revisit only if the parser
   surface grows materially.
 - **Add each new Python to the CI matrix by hand** when its final release
-  ships (annual cadence, not worth automating). 3.15 is deferred until then
-  (was rc2 on 2026-09-13, final due October 2026): a prerelease-specific
-  version string in `uv sync --python` is not worth carrying for a few weeks
-  of coverage the final release gets for free.
+  ships (annual cadence, no workflow adds it for us; `python-eol.yml` only
+  reminds about the floor). 3.15 is deferred until final (due October 2026).
+  Tried on 2026-09-20: `uv sync --locked --python 3.15` fails because `pyyaml`
+  6.0.3 has no 3.15 wheel and its sdist will not build (`Cython does not
+  appear to be installed`), so the matrix entry would only fail until pyyaml
+  publishes 3.15 wheels. Retry then; on success add `"3.15"` to `ci.yml`,
+  `docs/publishing.md`, `docs/ci-cd.md`, `CONTRIBUTING.md`, and the
+  `pyproject.toml` classifiers.
 
 ## Where things live
 
@@ -41,6 +45,8 @@ in [`docs/scorecard.md`](docs/scorecard.md).
 | What is still open | this file, the sections below |
 
 ## Decisions log
+
+- **Editor integrations: live in this repo under `integrations/<editor>/`, no MCP server, no language server (2026-09-20).** One subdirectory per editor keeps one release train and one CI, at the cost of foreign toolchains (Gradle, Rust) beside the Python project; each integration keeps its own build files. An MCP server is rejected, not deferred: it would let an agent read and act on the library, and composing content is a human decision at every trust boundary in the threat model. A language server is rejected as a large dependency for little the CLI and JSON Schemas do not already give. Evidence and build order are in [`docs/editor-integrations.md`](docs/editor-integrations.md).
 
 - **Language for v1: Python.** Chosen as the fastest language to get a working reference implementation in, not as the final or only implementation. Other languages are ports planned for later once the file formats and behavior are stable, tracked under "Additional language implementations" in the roadmap.
 - **License: MIT, confirmed after the dependency audit (2026-09-09).** Every
@@ -97,6 +103,8 @@ in [`docs/scorecard.md`](docs/scorecard.md).
 - [`docs/scorecard.md`](docs/scorecard.md) - the OpenSSF Scorecard score, the gap analysis, and
   what is and is not worth fixing. The action items are in the `Next` section
   above.
+- [`docs/editor-integrations.md`](docs/editor-integrations.md) - the editor and IDE
+  evaluation: licensing screen, capability matrix, effort and reach, build order.
 - [`docs/ci-cd.md`](docs/ci-cd.md) - every workflow, its trigger and cost, the
   `bump.yml` PAT wrinkle, branch protection settings, and the release flow
   end to end.
@@ -147,7 +155,7 @@ are fully covered.
 
 ### Third-party integrations
 
-- [ ] Research and, where practical, build integrations that let a user manage their content and snippet library without leaving their usual environment. Candidates are a VS Code extension or a JetBrains plugin; the TUI is tracked separately below. Before building anything new, evaluate whether extending an existing tool in this space is a better use of effort than duplicating config-sync mechanics that are already solved, so the focus stays on the snippet library and composition workflow that is not well covered elsewhere.
+- [ ] Build editor and IDE integrations that let a user manage their content and snippet library without leaving their usual environment. The evaluation is done and recorded in [`docs/editor-integrations.md`](docs/editor-integrations.md): twelve editors screened for cost, licensing, and extension capability, with a build order. Short version: one VS Code extension covers six editors (Open VSX plus the Microsoft Marketplace), JetBrains and Neovim follow, Zed and Helix get documented recipes only because they have no usable extension surface, and JSON Schemas for `mdcompose.lock` and snippet frontmatter reach every editor cheaply. Each integration is its own OpenSpec change, started by hand; the TUI is tracked separately below.
 
 ### TUI (terminal user interface)
 
