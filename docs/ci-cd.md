@@ -114,10 +114,9 @@ Consequences to know about:
 
 ## Planned: editor integrations (not implemented)
 
-Nothing in this section exists yet. It records the plan from the
-`integrations-foundation` change so the first integration builds against it. The
-workflow edits are made together with that first integration, so they are
-exercised by a real one.
+Nothing in this section is in a workflow yet. It records what building the VS Code
+extension taught, so the workflow edits can be made against a working extension.
+They are made in a release change of their own, started by hand.
 
 - **The `changes` job gains flags.** Its single `code` output splits into `python`
   and one flag per integration (`vscode`, later `jetbrains` and `neovim`). A change
@@ -131,23 +130,49 @@ exercised by a real one.
   so `all-green` (the only check the ruleset requires beside CodeQL and dependency
   review) also gates integration changes, and a failure still names the
   integration. Skipped calls count as passing, as with the existing jobs.
-- **Build and test jobs** install with npm (`actions/setup-node`, pinned to a
-  commit SHA like every other action, then `npm ci` against `package-lock.json`),
-  run the unit tests, build the bundle, and package the extension. `vsce`, `ovsx`,
-  and the editor test runner are Node tools, so CI needs Node in any case.
+- **Install with npm**: `actions/setup-node`, pinned to a commit SHA like every
+  other action, then `npm ci --ignore-scripts` in `integrations/vscode`. Node 22 or
+  newer is required, and `vsce`, `ovsx`, and the editor test runner are Node tools,
+  so CI needs Node in any case. `--ignore-scripts` matches what npm 12 does by
+  default (it blocked the install scripts of `esbuild`, `@vscode/vsce-sign`, and
+  `keytar`, and nothing needed them); an older npm would run them, and `keytar`
+  builds a native module, so the flag keeps runners identical.
+- **Jobs:** typecheck, lint, format check, the unit tests, a build, and `npm run
+  package`. The unit tests were also run on Linux (Node 22), and the adapter
+  tests use `process.cwd()` so they must run from `integrations/vscode`.
+- **Editor tests** (`npm run test:editor`) need a real editor and a real
+  `mdcompose`. The test tool downloads VS Code itself, and on Linux the editor
+  needs a virtual display, so that job wraps the command in `xvfb-run`. The job
+  installs `mdcompose` from the checkout (`pip install .` or `uv tool install .`)
+  and sets `MDCOMPOSE_EXE`. It builds its own scratch home and configuration, so
+  it never touches the runner's. `npm run check:package` does the same against the
+  installed package and is the check to run before a release. Run the editor tests
+  on Windows, Linux, and macOS in the end; only Windows has been run.
 - **Publishing is a separate, manual workflow** started with `workflow_dispatch`,
   never on a push, behind an environment with a required reviewer as `pypi` is.
-  Registry tokens are repository secrets, one per registry, separate from any
-  token used locally.
+  It builds one `.vsix` and publishes that same file to both registries:
+  `vsce publish --packagePath` for the Microsoft Marketplace (authenticated with
+  Microsoft Entra ID, because global personal access tokens retire on
+  2026-12-01) and `ovsx publish` for Open VSX (a token secret, separate from any
+  token used locally). The publisher id is the same on both, and it is still a
+  placeholder (`publisher-tbd`, replaced with `npm run set-publisher`).
 - **Tag guard.** The publish workflow refuses any tag that does not match
-  `^integration-<editor>-v[0-9]+\.[0-9]+\.[0-9]+$`. `release.yml` starts on any
-  tag beginning with `v`, so an integration tag must never begin with `v`, and the
-  guard is what keeps a mistake from starting a release of the command line.
-- **Other workflows.** CodeQL adds the JavaScript and TypeScript language when the
-  first extension code exists. Renovate gets a manager for the JavaScript
-  lockfile. The supply-chain workflow needs a licence check and an audit for the
-  JavaScript dependencies, since the existing ones cover only the Python
-  dependency set.
+  `^integration-vscode-v[0-9]+\.[0-9]+\.[0-9]+$` and checks it against the version in
+  `package.json`. `release.yml` starts on any tag beginning with `v`, so an
+  integration tag must never begin with `v`, and the guard is what keeps a mistake
+  from starting a release of the command line.
+- **Commit types.** The command line's release version is computed from commit
+  types, so integration commits use `chore`, `build`, `test`, or `docs` with the
+  editor as scope, never `feat` or `fix`. A `commits` check could enforce it for
+  changes that touch only `integrations/`.
+- **Other workflows.** CodeQL adds the JavaScript and TypeScript language. The
+  supply-chain workflow needs a licence check and an audit for the npm
+  dependencies (`npm audit`, and the SBOM and vulnerability scanners over
+  `package-lock.json`), since the existing ones cover only the Python dependency
+  set. Renovate already handles npm; it needs a rule that keeps `@types/vscode` at
+  or below the minimum editor version in `engines.vscode`, because the packager
+  refuses newer types, and it should review `oxfmt` upgrades for formatting
+  changes, since that formatter is still pre-1.0.
 - **Bun is not used in the workflows.** A benchmark on 2026-09-20 found a fresh
   `npm ci` 4 to 6 times faster than `bun ci` on Windows, and the saving in script
   start-up is too small to matter in CI. See the decisions log in `TODO.md`.

@@ -1,5 +1,6 @@
 *.vsix
 .ex/
+.package-check/
 .sandbox/
 .scratch/
 .test-build/

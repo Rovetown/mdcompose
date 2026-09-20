@@ -79,7 +79,8 @@ if (process.env.MDCOMPOSE_EXE) {
 
 await runTests({
   vscodeExecutablePath: process.env.CODE_EXE,
-  extensionDevelopmentPath: root,
+  // check:package sets EXTENSION_DIR to an installed copy of the package.
+  extensionDevelopmentPath: process.env.EXTENSION_DIR ?? root,
   extensionTestsPath: path.resolve(here, "suite", "index.js"),
   extensionTestsEnv: env,
   launchArgs,

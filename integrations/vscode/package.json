@@ -19,7 +19,16 @@
     "vscode": "^1.90.0"
   },
   "categories": [
+    "Snippets",
     "Other"
+  ],
+  "keywords": [
+    "mdcompose",
+    "AGENTS.md",
+    "CLAUDE.md",
+    "snippets",
+    "skills",
+    "agent instructions"
   ],
   "main": "./dist/extension.js",
   "activationEvents": [],
@@ -293,7 +302,9 @@
     "test:editor": "node test/run.mjs",
     "package": "vsce package --no-dependencies",
     "sandbox": "node scripts/sandbox.mjs",
-    "icon": "node scripts/make-icon.mjs"
+    "icon": "node scripts/make-icon.mjs",
+    "check:package": "node scripts/check-package.mjs",
+    "set-publisher": "node scripts/set-publisher.mjs"
   },
   "devDependencies": {
     "@resvg/resvg-js": "2.6.2",
