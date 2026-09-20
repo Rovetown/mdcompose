@@ -46,7 +46,7 @@ in [`docs/scorecard.md`](docs/scorecard.md).
 
 ## Decisions log
 
-- **Editor integrations: live in this repo under `integrations/<editor>/`, no MCP server, no language server (2026-09-20).** One subdirectory per editor keeps one release train and one CI, at the cost of foreign toolchains (Gradle, Rust) beside the Python project; each integration keeps its own build files. An MCP server is rejected, not deferred: it would let an agent read and act on the library, and composing content is a human decision at every trust boundary in the threat model. A language server is rejected as a large dependency for little the CLI and JSON Schemas do not already give. Evidence and build order are in [`docs/editor-integrations.md`](docs/editor-integrations.md).
+- **Editor integrations: live in this repo under `integrations/<editor>/`, no MCP server, no language server, and Kiro, Windsurf, Zed, Helix, and Sublime Text out of scope for now (2026-09-20).** One subdirectory per editor keeps one release train and one CI, at the cost of foreign toolchains (Gradle, Rust) beside the Python project; each integration keeps its own build files. An MCP server is rejected, not deferred: it would let an agent read and act on the library, and composing content is a human decision at every trust boundary in the threat model. A language server is rejected as a large dependency for little the CLI and JSON Schemas do not already give. Evidence and build order are in [`docs/editor-integrations.md`](docs/editor-integrations.md).
 
 - **Language for v1: Python.** Chosen as the fastest language to get a working reference implementation in, not as the final or only implementation. Other languages are ports planned for later once the file formats and behavior are stable, tracked under "Additional language implementations" in the roadmap.
 - **License: MIT, confirmed after the dependency audit (2026-09-09).** Every
@@ -155,7 +155,7 @@ are fully covered.
 
 ### Third-party integrations
 
-- [ ] Build editor and IDE integrations that let a user manage their content and snippet library without leaving their usual environment. The evaluation is done and recorded in [`docs/editor-integrations.md`](docs/editor-integrations.md): twelve editors screened for cost, licensing, and extension capability, with a build order. Short version: one VS Code extension covers six editors (Open VSX plus the Microsoft Marketplace), JetBrains and Neovim follow, Zed and Helix get documented recipes only because they have no usable extension surface, and JSON Schemas for `mdcompose.lock` and snippet frontmatter reach every editor cheaply. Each integration is its own OpenSpec change, started by hand; the TUI is tracked separately below.
+- [ ] Build editor and IDE integrations that let a user manage their content and snippet library without leaving their usual environment. The evaluation is done and recorded in [`docs/editor-integrations.md`](docs/editor-integrations.md): seven editors screened for cost, licensing, and extension capability, with a build order. Short version: one VS Code extension covers four editors (VS Code, VSCodium, Cursor, and Antigravity, via Open VSX plus the Microsoft Marketplace), JetBrains and Neovim follow, Zed, Helix, Sublime Text, Windsurf, and Kiro are removed for now (their users run the CLI or TUI from a terminal), and JSON Schemas for `mdcompose.lock` and snippet frontmatter reach every editor cheaply. Each integration is its own OpenSpec change, started by hand; the TUI is tracked separately below.
 
 ### TUI (terminal user interface)
 
