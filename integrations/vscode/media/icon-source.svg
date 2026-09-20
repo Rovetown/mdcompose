@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="6 1 76 76" role="img" aria-label="mdcompose">
+  <!-- The logo mark from docs/assets/mdcompose-logo.svg without the wordmark: three
+       offset rounded cards with an M on the top one. Rendered to icon.png by
+       scripts/make-icon.mjs, because the marketplaces do not accept an SVG icon. -->
+  <rect x="10" y="21" width="52" height="52" rx="12" fill="#C7D2FE"/>
+  <rect x="18" y="13" width="52" height="52" rx="12" fill="#818CF8"/>
+  <rect x="26" y="5" width="52" height="52" rx="12" fill="#4F46E5"/>
+  <path d="M36,47 L36,17 L52,33 L68,17 L68,47" fill="none" stroke="#FFFFFF" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

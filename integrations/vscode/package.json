@@ -2,6 +2,7 @@
   "name": "mdcompose",
   "displayName": "mdcompose",
   "description": "Browse and manage your mdcompose snippet and skill libraries from the sidebar.",
+  "icon": "media/icon.png",
   "version": "0.0.0",
   "publisher": "publisher-tbd",
   "license": "MIT",
@@ -292,9 +293,11 @@
     "test": "esbuild \"src/**/*.test.ts\" --bundle --platform=node --target=node20 --format=cjs --outdir=.test-build --outbase=src --log-level=warning && node --test \".test-build/**/*.test.js\"",
     "test:editor": "node test/run.mjs",
     "package": "vsce package --no-dependencies",
-    "sandbox": "node scripts/sandbox.mjs"
+    "sandbox": "node scripts/sandbox.mjs",
+    "icon": "node scripts/make-icon.mjs"
   },
   "devDependencies": {
+    "@resvg/resvg-js": "2.6.2",
     "@types/node": "20.19.43",
     "@types/vscode": "1.90.0",
     "@vscode/test-electron": "3.1.0",

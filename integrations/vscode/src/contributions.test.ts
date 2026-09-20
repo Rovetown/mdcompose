@@ -94,6 +94,17 @@ test("every contributed command has a title, and every menu item points at one",
   }
 });
 
+test("the listing icon is a PNG of at least 128 pixels, because an SVG is refused", () => {
+  const icon = (JSON.parse(readFileSync(join(root, "package.json"), "utf8")) as { icon?: string })
+    .icon;
+  assert.equal(icon, "media/icon.png");
+  const bytes = readFileSync(join(root, icon));
+  // A PNG starts with these eight bytes, and the width and height follow in the header.
+  assert.deepEqual([...bytes.subarray(0, 8)], [137, 80, 78, 71, 13, 10, 26, 10]);
+  assert.ok(bytes.readUInt32BE(16) >= 128, "width");
+  assert.ok(bytes.readUInt32BE(20) >= 128, "height");
+});
+
 test("the executable and timeout settings are machine-scoped, so a workspace cannot set them", () => {
   const properties = contributes.configuration.properties;
   assert.equal(properties["mdcompose.executablePath"]?.scope, "machine");
