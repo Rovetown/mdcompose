@@ -146,9 +146,9 @@
       },
       {
         "command": "mdcompose.adoptSnippets",
-        "title": "Adopt Snippets From This Project",
+        "title": "Copy This Project's Snippets Into Library",
         "category": "mdcompose",
-        "icon": "$(cloud-download)"
+        "icon": "$(repo-pull)"
       },
       {
         "command": "mdcompose.editSkill",
@@ -164,30 +164,30 @@
       },
       {
         "command": "mdcompose.adoptSkills",
-        "title": "Adopt Skills From This Project",
+        "title": "Copy This Project's Skills Into Library",
         "category": "mdcompose",
-        "icon": "$(cloud-download)"
+        "icon": "$(repo-pull)"
       },
       {
         "command": "mdcompose.reapply",
-        "title": "Reapply Project",
+        "title": "Recompose Project From Its Saved Selection",
         "category": "mdcompose",
-        "icon": "$(sync)"
+        "icon": "$(debug-rerun)"
       },
       {
         "command": "mdcompose.changeSelection",
-        "title": "Change Selection",
+        "title": "Choose Snippets and Skills for This Project",
         "category": "mdcompose",
-        "icon": "$(list-selection)"
+        "icon": "$(checklist)"
       },
       {
         "command": "mdcompose.copyEntryId",
-        "title": "Copy ID",
+        "title": "Copy ID to Clipboard",
         "category": "mdcompose"
       },
       {
         "command": "mdcompose.revealEntry",
-        "title": "Reveal in File Explorer",
+        "title": "Show File in Its Folder",
         "category": "mdcompose"
       }
     ],

@@ -7,7 +7,7 @@ import type { Snapshot } from "../adapter/refresh.ts";
 // tree providers only translate these rows into tree items.
 
 // Names of the editor's built-in icons, so no icon files are shipped for rows.
-export type IconId = "pass" | "warning" | "info" | "symbol-snippet" | "sparkle" | "folder";
+export type IconId = "pass" | "warning" | "info" | "file-code" | "sparkle" | "folder";
 
 export interface Row {
   id: string;
@@ -47,7 +47,7 @@ function libraryRow(kind: LibraryKind, entry: LibraryEntry, titleIsShared: boole
     ...(entry.tags.length === 0 ? [] : [`tags: ${entry.tags.join(", ")}`]),
     ...(entry.isBundle ? ["a skill stored as a directory"] : []),
   ];
-  let icon: IconId = kind === "snippet" ? "symbol-snippet" : "sparkle";
+  let icon: IconId = kind === "snippet" ? "file-code" : "sparkle";
   if (entry.isBundle) icon = "folder";
   return {
     id: `${kind}:${entry.id}`,

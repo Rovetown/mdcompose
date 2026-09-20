@@ -174,7 +174,7 @@ export function registerActions(
     switch (outcome.kind) {
       case "not-composed":
         void vscode.window.showInformationMessage(
-          "This project has no mdcompose manifest yet. Use Change Selection to compose it.",
+          "This project has no mdcompose manifest yet. Use 'Choose Snippets and Skills for This Project' to compose it.",
         );
         break;
       case "drift": {

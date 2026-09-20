@@ -29,17 +29,18 @@ Click the mdcompose icon in the Activity Bar. It holds three views:
   description, and its id when two entries share a title.
   - **Edit** opens the entry's file in an editor tab.
   - **Remove** asks first, then removes it through the command line.
-  - **Adopt** brings in the snippets or skills embedded in the current project's
-    manifest. If one already exists in your library with different content, you
-    choose: keep your copies, replace them, or decide one by one in the terminal.
+  - **Copy This Project's Snippets (or Skills) Into Library** brings in the ones
+    embedded in the current project's manifest (`mdcompose snippet adopt`). If one
+    already exists in your library with different content, you choose: keep your
+    copies, replace them, or decide one by one in the terminal.
 - **Project** shows the state of the folder you have open: whether it is healthy,
   the status of `AGENTS.md` and `CLAUDE.md`, the sync state of each registered
   target, and any warnings.
-  - **Reapply** re-composes the project from its recorded selection. If a managed
-    file was edited by hand, it stops, changes nothing, and offers to open the
-    command line's own prompt in a terminal.
-  - **Change Selection** opens `mdcompose init` in a terminal, so its picker works
-    unchanged.
+  - **Recompose Project From Its Saved Selection** re-composes the project from its
+    recorded selection. If a managed file was edited by hand, it stops, changes
+    nothing, and offers to open the command line's own prompt in a terminal.
+  - **Choose Snippets and Skills for This Project** opens `mdcompose init` in a
+    terminal, so its picker works unchanged.
 
 Every button is also a command in the command palette, under "mdcompose". In a
 window with several folders, project actions ask which folder they apply to.

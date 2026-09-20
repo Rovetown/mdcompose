@@ -19,6 +19,7 @@ import {
   type LibraryKind,
   type Row,
 } from "./views/model.ts";
+import { withLibraryHints, withProjectHints } from "./views/hints.ts";
 import type { RowsProvider } from "./views/provider.ts";
 import { formatLocal } from "./views/time.ts";
 
@@ -294,7 +295,7 @@ export class Controller {
 
   private applyLibrary(kind: LibraryKind, snapshot: Snapshot<LibraryReport> | null): void {
     const handle = kind === "snippet" ? this.views.snippets : this.views.skills;
-    handle.provider.set(libraryContent(snapshot, kind, formatLocal));
+    handle.provider.set(withLibraryHints(libraryContent(snapshot, kind, formatLocal), kind));
     if (snapshot !== null && snapshot.state !== "unavailable") {
       this.libraries.set(kind, snapshot.value);
     }
@@ -303,7 +304,7 @@ export class Controller {
 
   private applyHealth(snapshot: Snapshot<HealthState> | null): void {
     this.views.project.provider.set(
-      healthContent(snapshot, this.folder() !== undefined, formatLocal),
+      withProjectHints(healthContent(snapshot, this.folder() !== undefined, formatLocal)),
     );
     this.syncMessages();
   }

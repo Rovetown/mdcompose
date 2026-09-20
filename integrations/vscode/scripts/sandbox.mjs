@@ -141,7 +141,7 @@ console.log(`  project alpha      ${alpha}  (composed)`);
 console.log(`  project beta       ${beta}  (not composed)`);
 console.log("");
 console.log("Things to try:");
-console.log("  Multi-folder   Adopt, Reapply, and Change Selection ask which folder.");
+console.log("  Multi-folder   Copy Into Library, Recompose, and Choose Snippets ask which folder.");
 console.log(
   "  Drift          Edit alpha/AGENTS.md by hand, then Reapply: it stops and offers a terminal.",
 );
