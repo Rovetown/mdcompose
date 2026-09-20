@@ -206,16 +206,21 @@ exports.run = async function run() {
   // A workspace cannot name the program the extension runs: try, and confirm the
   // user's setting is still the one in use.
   const configuration = vscode.workspace.getConfiguration("mdcompose");
+  let refused = "";
   try {
     await configuration.update(
       "executablePath",
       path.join(os.tmpdir(), "evil", "mdcompose.exe"),
       vscode.ConfigurationTarget.Workspace,
     );
-  } catch {
-    // The editor refuses a workspace value for a machine-scoped setting. Either
-    // way the next check is what matters.
+  } catch (error) {
+    // The editor refuses a workspace value for a machine-scoped setting: "This
+    // setting can be written only into User settings."
+    refused = String(error);
   }
+  assert.match(refused, /only into User settings/, "the editor refuses a workspace value");
+  const stored = vscode.workspace.getConfiguration("mdcompose").inspect("executablePath");
+  assert.strictEqual(stored.workspaceValue, undefined, "no workspace value is stored");
   await api.refresh();
   state = api.state();
   assert.strictEqual(state.environment, "ready");

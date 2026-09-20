@@ -168,7 +168,8 @@ if (flags.has("--no-launch")) {
     detached: true,
     stdio: "ignore",
     shell: editor.shell,
-    windowsHide: true,
+    // No windowsHide here, unlike the adapter: that option hides the program's
+    // window on Windows, and this program is a window the user wants to see.
   });
   child.unref();
   console.log("");
