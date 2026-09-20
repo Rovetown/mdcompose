@@ -186,11 +186,6 @@ Both run as hooks, so neither needs a separate workflow.
 
 ## 6. Issue and PR intake
 
-Do the first three at repo-public time.
-GitHub-native, no tooling.
-Skip the triage bot.
+In place, GitHub-native, no tooling: issue forms (`bug_report.yml`, `feature_request.yml`) and `config.yml` under `.github/ISSUE_TEMPLATE/`, and `.github/PULL_REQUEST_TEMPLATE.md`.
 
-- [ ] `.github/ISSUE_TEMPLATE/bug_report.yml` and `feature_request.yml` as **issue forms** ( https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/configuring-issue-templates-for-your-repository ): structured YAML fields, GitHub renders them.
-- [ ] `.github/ISSUE_TEMPLATE/config.yml` with `blank_issues_enabled: false` and a contact link pointing questions to GitHub Discussions.
-- [ ] `.github/PULL_REQUEST_TEMPLATE.md` with the CONTRIBUTING checklist inline.
 - Triage bot (`actions/stale`, `dessant/label-actions`): **not used.** Issue volume will not justify it at this size, and auto-closing a solo project's stale issues is user-hostile.
