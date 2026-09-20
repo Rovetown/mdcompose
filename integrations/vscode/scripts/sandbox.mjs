@@ -2,7 +2,7 @@
 // home, a scratch mdcompose library, and two scratch projects, so every action can
 // be tried by hand without touching your real library or projects.
 //
-//   bun run build
+//   npm run build
 //   MDCOMPOSE_EXE=<path to mdcompose> node scripts/sandbox.mjs [--no-launch] [--trusted]
 //
 // Everything is built under .sandbox/, which is ignored by git and safe to delete.
@@ -49,7 +49,7 @@ if (mdcompose === undefined || !existsSync(mdcompose)) {
   process.exit(1);
 }
 if (!existsSync(path.join(root, "dist", "extension.js"))) {
-  console.error("Build first: bun run build (or npm run build).");
+  console.error("Build first: npm run build.");
   process.exit(1);
 }
 

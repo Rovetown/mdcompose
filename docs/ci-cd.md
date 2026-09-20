@@ -131,10 +131,10 @@ exercised by a real one.
   so `all-green` (the only check the ruleset requires beside CodeQL and dependency
   review) also gates integration changes, and a failure still names the
   integration. Skipped calls count as passing, as with the existing jobs.
-- **Build and test jobs** install with the toolchain the Bun spike chose (Bun
-  first, npm as the fallback), run the adapter tests, build the bundle, and
-  package the extension. `oven-sh/setup-bun` or `actions/setup-node`, whichever is
-  chosen, is pinned to a commit SHA like every other action.
+- **Build and test jobs** install with npm (`actions/setup-node`, pinned to a
+  commit SHA like every other action, then `npm ci` against `package-lock.json`),
+  run the unit tests, build the bundle, and package the extension. `vsce`, `ovsx`,
+  and the editor test runner are Node tools, so CI needs Node in any case.
 - **Publishing is a separate, manual workflow** started with `workflow_dispatch`,
   never on a push, behind an environment with a required reviewer as `pypi` is.
   Registry tokens are repository secrets, one per registry, separate from any
@@ -148,8 +148,9 @@ exercised by a real one.
   lockfile. The supply-chain workflow needs a licence check and an audit for the
   JavaScript dependencies, since the existing ones cover only the Python
   dependency set.
-- **Using Bun in the workflows** is a separate roadmap item in `TODO.md`, decided
-  after the spike with real timings.
+- **Bun is not used in the workflows.** A benchmark on 2026-09-20 found a fresh
+  `npm ci` 4 to 6 times faster than `bun ci` on Windows, and the saving in script
+  start-up is too small to matter in CI. See the decisions log in `TODO.md`.
 
 ## The `bump.yml` PAT wrinkle (important)
 

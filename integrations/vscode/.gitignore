@@ -1,9 +1,11 @@
 *.vsix
 .ex/
+.sandbox/
 .scratch/
 .test-build/
 .ud/
 .vscode-test/
+bun.lock
+bun.lockb
 dist/
 node_modules/
-.sandbox/

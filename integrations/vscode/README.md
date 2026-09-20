@@ -17,17 +17,19 @@ downloads, or updates it, and it makes no network requests and sends no telemetr
 
 ## Development
 
-The toolchain is Bun first, with npm as a tested fallback. Every script in
-`package.json` runs under either, and the source uses no Bun-only API.
+The toolchain is npm (with Node 22 or newer) and the lockfile is
+`package-lock.json`. Install with `npm ci`, the same command CI uses, so a local
+install is exactly what CI gets.
 
-    bun ci                 install exactly what bun.lock records
-    bun run build          bundle src/extension.ts to dist/extension.js
-    bun run typecheck      type-check with tsc
-    bun run lint           oxlint, type-aware
-    bun run format         oxfmt, check only (format:write fixes)
-    bun run test           bundle the unit tests with esbuild, run them with Node
-    bun run test:editor    load the extension into a real editor and test it
-    bun run package        build the .vsix package
+    npm ci                 install exactly what package-lock.json records
+    npm run build          bundle src/extension.ts to dist/extension.js
+    npm run typecheck      type-check with tsc
+    npm run lint           oxlint, type-aware
+    npm run format         oxfmt, check only (format:write fixes)
+    npm run test           bundle the unit tests with esbuild, run them with Node
+    npm run test:editor    load the extension into a real editor and test it
+    npm run package        build the .vsix package
+    npm run icon           re-render media/icon.png from media/icon-source.svg
 
 The unit tests are bundled first, then run by Node's built-in test runner, so they
 work on any Node 22 or newer build, including distribution builds of Node that
@@ -36,9 +38,16 @@ cannot run TypeScript directly (the WSL Ubuntu package is one).
 `test:editor` starts a real editor. Set `CODE_EXE` to an installed editor
 executable to use it; otherwise the test tool downloads VS Code.
 
-To fall back to npm, delete `bun.lock`, run `npm install`, change the
-`packageManager` field in `package.json`, and use `npm run <script>` in place of
-`bun run <script>`. Keep exactly one lockfile.
+### Using Bun locally
+
+Bun is optional and only a convenience. The scripts contain no Bun-specific
+commands and the source uses no Bun-only API, so `bun run <script>` works in place
+of `npm run <script>` and starts a little faster (about 50 to 200 ms less per
+script on Windows). Keep installing with `npm ci`: `bun install` in this project
+writes its own `bun.lock` (git ignores it) and resolved 3 of 348 packages to
+different versions than `package-lock.json` in a test, so a Bun install is not the
+tree CI gets. On a fresh install npm was also 4 to 6 times faster than Bun on
+Windows (6.5 s against 40 s with an empty cache).
 
 ## Try it
 
@@ -53,8 +62,8 @@ in your user settings; a workspace cannot set it.
 
 To try every action without touching your real library or projects:
 
-    bun run build
-    MDCOMPOSE_EXE=<path to mdcompose> bun run sandbox
+    npm run build
+    MDCOMPOSE_EXE=<path to mdcompose> npm run sandbox
 
 This builds `.sandbox/` (ignored by git, safe to delete) with a scratch mdcompose
 library, a scratch home, and two projects, `alpha` (composed) and `beta` (not

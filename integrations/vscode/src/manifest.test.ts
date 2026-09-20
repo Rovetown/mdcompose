@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -57,7 +58,8 @@ test("main points at the file the build script writes", () => {
 });
 
 test("no package script depends on a tool only Bun provides", () => {
-  // Falling back to npm must stay a change of install command and nothing else.
+  // npm is the toolchain of record. Scripts stay free of Bun so that npm, CI, and
+  // anyone who prefers to run them with `bun run` all work the same.
   for (const [name, command] of Object.entries(manifest.scripts)) {
     assert.doesNotMatch(command, /\bbun(x)?\b/, `script "${name}" needs Bun`);
   }
@@ -74,9 +76,19 @@ test("no source file uses a Bun-only API", () => {
   }
 });
 
-test("exactly one lockfile is committed", () => {
-  const lockfiles = ["bun.lock", "package-lock.json"].filter((name) =>
-    existsSync(join(root, name)),
-  );
-  assert.equal(lockfiles.length, 1, `found: ${lockfiles.join(", ") || "none"}`);
+test("the one committed lockfile is package-lock.json", () => {
+  // Checked against what git tracks, so a lockfile a tool leaves in the working
+  // tree (Bun writes bun.lock if someone runs bun install) does not fail a local run.
+  // It is ignored by git, so it can never be committed by accident.
+  const names = ["package-lock.json", "bun.lock", "bun.lockb", "yarn.lock", "pnpm-lock.yaml"];
+  let tracked: string[];
+  try {
+    tracked = execFileSync("git", ["ls-files", "--", ...names], { cwd: root, encoding: "utf8" })
+      .split("\n")
+      .filter((name) => name !== "");
+  } catch {
+    // Not a git checkout, so fall back to the files on disk.
+    tracked = names.filter((name) => existsSync(join(root, name)));
+  }
+  assert.deepEqual(tracked, ["package-lock.json"]);
 });
