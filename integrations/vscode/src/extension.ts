@@ -1,5 +1,7 @@
 import * as vscode from "vscode";
+import { registerActions, type PromptsHolder } from "./actions.ts";
 import { Controller, type ViewState } from "./controller.ts";
+import { defaultPrompts, type Prompts } from "./prompts.ts";
 import type { Row } from "./views/model.ts";
 import { RowsProvider } from "./views/provider.ts";
 
@@ -7,6 +9,8 @@ import { RowsProvider } from "./views/provider.ts";
 export interface ExtensionApi {
   refresh: () => Promise<void>;
   state: () => ViewState;
+  // Replaces the dialogs, which a test cannot click.
+  setPrompts: (prompts: Partial<Prompts>) => void;
 }
 
 function createView(id: string): { provider: RowsProvider; view: vscode.TreeView<Row> } {
@@ -26,6 +30,8 @@ export function activate(context: vscode.ExtensionContext): ExtensionApi {
   }
 
   const controller = new Controller(context, views);
+  const holder: PromptsHolder = { prompts: defaultPrompts };
+  registerActions(context, controller, holder);
   context.subscriptions.push(
     vscode.commands.registerCommand("mdcompose.refresh", () => controller.refresh()),
     vscode.commands.registerCommand("mdcompose.showOutput", () => controller.showOutput()),
@@ -36,7 +42,13 @@ export function activate(context: vscode.ExtensionContext): ExtensionApi {
   );
 
   void controller.start();
-  return { refresh: () => controller.refresh(), state: () => controller.state() };
+  return {
+    refresh: () => controller.refresh(),
+    state: () => controller.state(),
+    setPrompts: (prompts) => {
+      holder.prompts = { ...defaultPrompts, ...prompts };
+    },
+  };
 }
 
 export function deactivate(): void {}

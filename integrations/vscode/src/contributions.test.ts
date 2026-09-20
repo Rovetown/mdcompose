@@ -104,3 +104,57 @@ test("the manifest holds only plain ASCII", () => {
   const text = readFileSync(join(root, "package.json"), "utf8");
   assert.ok(isAscii(text));
 });
+
+// Commands that need a row to act on, so they are hidden from the command palette.
+const ROW_ONLY = ["mdcompose.copyEntryId", "mdcompose.revealEntry"];
+
+function sourceOf(...files: string[]): string {
+  return files.map((file) => readFileSync(join(root, "src", file), "utf8")).join("\n");
+}
+
+test("every contributed command is registered in the code", () => {
+  const code = sourceOf("actions.ts", "extension.ts");
+  for (const command of contributes.commands) {
+    assert.ok(code.includes(`"${command.command}"`), `${command.command} is never registered`);
+  }
+});
+
+test("every action reachable from a button is also in the command palette", () => {
+  const hidden = (contributes.menus["commandPalette"] ?? [])
+    .filter((item) => item.when === "false")
+    .map((item) => item.command);
+  assert.deepEqual([...hidden].sort(), [...ROW_ONLY].sort());
+  // The two above need a row, so they are the only commands allowed to be hidden.
+  const buttons = new Set(
+    Object.entries(contributes.menus)
+      .filter(([location]) => location !== "commandPalette")
+      .flatMap(([, items]) => items.map((item) => item.command)),
+  );
+  for (const command of buttons) {
+    if (ROW_ONLY.includes(command)) continue;
+    assert.ok(!hidden.includes(command), `${command} is a button but hidden from the palette`);
+  }
+});
+
+test("buttons that change something appear only once a suitable mdcompose is ready", () => {
+  const changing = [
+    "mdcompose.removeSnippet",
+    "mdcompose.removeSkill",
+    "mdcompose.adoptSnippets",
+    "mdcompose.adoptSkills",
+    "mdcompose.reapply",
+    "mdcompose.changeSelection",
+  ];
+  for (const items of Object.values(contributes.menus)) {
+    for (const item of items.filter((entry) => changing.includes(entry.command))) {
+      assert.match(item.when ?? "", /mdcompose\.state == 'ready'/, item.command);
+    }
+  }
+});
+
+test("there is no action that creates a snippet or a skill", () => {
+  for (const command of contributes.commands) {
+    assert.doesNotMatch(command.command, /create|new|add(?!opt)/i, command.command);
+    assert.doesNotMatch(command.title, /\b(create|new|add)\b/i, command.title);
+  }
+});

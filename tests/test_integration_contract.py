@@ -15,6 +15,8 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
+import sys
 import tempfile
 from collections.abc import Callable
 from pathlib import Path
@@ -181,6 +183,71 @@ def test_key_paths_merge_the_fields_of_list_elements() -> None:
 
 def test_key_paths_of_a_scalar_list_stop_at_the_list() -> None:
     assert key_paths({"tags": ["x", "y"]}) == {"tags"}
+
+
+# The editor integrations react to two phrases the command line prints, because
+# neither situation has a machine-readable form. The same phrases are constants in
+# integrations/vscode/src/adapter/actions.ts. If the command line's wording changes,
+# these tests fail here, where the fix is to update the integrations together.
+COLLISION_TEXT = "already exists in the library with different content"
+DRIFT_ABORT_TEXT = "aborted, nothing written"
+
+
+def run_unattended(root: Path, *args: str) -> subprocess.CompletedProcess[str]:
+    """Run the real command line with standard input closed, as an integration does."""
+    environment = dict(os.environ)
+    environment["MDCOMPOSE_CONFIG_DIR"] = str(root / "config")
+    program = "import sys; from mdcompose import cli; sys.exit(cli.run(sys.argv[1:]))"
+    return subprocess.run(
+        [sys.executable, "-c", program, *args],
+        cwd=root / "project",
+        env=environment,
+        stdin=subprocess.DEVNULL,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        check=False,
+    )
+
+
+def test_adopting_over_a_different_library_copy_stops_with_the_phrase_integrations_read(
+    populated: Path,
+) -> None:
+    (populated / "config" / "snippets" / "commit-style.md").write_text(
+        "---\ntitle: Commit style\n---\n\nDifferent text.\n", encoding="utf-8"
+    )
+    result = run_unattended(populated, "snippet", "adopt")
+    assert result.returncode == EXIT_ATTENTION
+    assert COLLISION_TEXT in result.stderr + result.stdout
+
+
+def test_adopting_with_an_explicit_choice_does_not_stop(populated: Path) -> None:
+    (populated / "config" / "snippets" / "commit-style.md").write_text(
+        "---\ntitle: Commit style\n---\n\nDifferent text.\n", encoding="utf-8"
+    )
+    result = run_unattended(populated, "snippet", "adopt", "--on-collision", "keep")
+    assert result.returncode == EXIT_OK
+
+
+def test_reapplying_over_hand_edits_with_abort_prints_the_phrase_integrations_read(
+    populated: Path,
+) -> None:
+    agents = populated / "project" / "AGENTS.md"
+    agents.write_text(
+        agents.read_text(encoding="utf-8").replace("Prefer small commits.", "Hand edited."),
+        encoding="utf-8",
+    )
+    result = run_unattended(populated, "init", "--reapply", "--on-drift", "abort")
+    assert result.returncode == EXIT_ATTENTION
+    assert DRIFT_ABORT_TEXT in result.stdout + result.stderr
+    assert "Hand edited." in agents.read_text(encoding="utf-8"), "nothing was overwritten"
+
+
+def test_a_project_with_no_manifest_says_so_when_adopting(populated: Path) -> None:
+    (populated / "project" / "mdcompose.lock").unlink()
+    result = run_unattended(populated, "snippet", "adopt")
+    assert result.returncode == EXIT_ATTENTION
+    assert "nothing to adopt" in result.stderr + result.stdout
 
 
 def test_scrub_replaces_the_root_in_both_path_spellings(tmp_path: Path) -> None:

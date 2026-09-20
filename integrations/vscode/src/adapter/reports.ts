@@ -128,7 +128,9 @@ function readLibrary(
     const path = `${listKey}[].`;
     return {
       id: reader.string(row, "id", path),
-      title: reader.string(row, "title", path),
+      // A snippet or skill without a title reports null. It is kept as an empty
+      // title, which the views show as the id.
+      title: reader.nullableString(row, "title", path) ?? "",
       description: reader.nullableString(row, "description", path),
       tags: reader.strings(row, "tags", path),
       category: reader.nullableString(row, "category", path),

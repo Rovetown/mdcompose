@@ -75,6 +75,17 @@ test("a field that has no value must be present and null, not absent", () => {
   assert.equal(readSnippetList({ ...document, snippets: [entry] }).ok, false);
 });
 
+test("a snippet without a title reports null and is kept, shown later by its id", () => {
+  // Found by the editor test: an adopted snippet with no frontmatter title made
+  // the whole list read as incompatible.
+  const result = readSnippetList({
+    library: "/lib",
+    snippets: [{ id: "bare", title: null, description: null, tags: [], category: null }],
+  });
+  assert.equal(result.ok, true);
+  if (result.ok) assert.equal(result.value.entries[0]?.title, "");
+});
+
 test("a project that has not been composed reports no drift list", () => {
   const document = sample("doctor") as Record<string, unknown>;
   const result = readHealth({ ...document, initialized: false, drift: null });

@@ -8,6 +8,7 @@
 // They run against a scratch home and configuration directory built here, never
 // the real ones: the editor is started with the environment variables that move
 // them, so nothing on the real machine is read or written.
+import { execFileSync } from "node:child_process";
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -54,6 +55,17 @@ if (process.env.MDCOMPOSE_EXE) {
     path.join(config, "skills"),
     "code-review.md",
     "---\ntitle: Code review\ndescription: How we review code here\ntags: [review]\ncategory: process\n---\n\nReview for correctness first.\n",
+  );
+  // Compose the scratch project with the real command line, so the actions have a
+  // manifest to work from.
+  execFileSync(
+    path.resolve(process.env.MDCOMPOSE_EXE),
+    ["init", "--yes", "--mode", "copy", "--snippets", "commit-style,python-style"],
+    {
+      cwd: project,
+      stdio: "ignore",
+      env: { ...process.env, MDCOMPOSE_CONFIG_DIR: config, USERPROFILE: home, HOME: home },
+    },
   );
   Object.assign(env, {
     MDCOMPOSE_CONFIG_DIR: config,

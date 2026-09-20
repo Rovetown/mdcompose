@@ -1,9 +1,10 @@
 import { createHash } from "node:crypto";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import * as vscode from "vscode";
+import type { Run } from "./adapter/actions.ts";
 import { Cache, cacheKey } from "./adapter/cache.ts";
-import { createCommands, type HealthState } from "./adapter/commands.ts";
+import { createCommands, type Commands, type HealthState } from "./adapter/commands.ts";
 import { resolveEnvironment, type Environment } from "./adapter/environment.ts";
 import { inspectPath } from "./adapter/locate.ts";
 import { fromCache, refresh, type Snapshot } from "./adapter/refresh.ts";
@@ -11,8 +12,13 @@ import type { LibraryReport } from "./adapter/reports.ts";
 import type { Failure, Result } from "./adapter/result.ts";
 import { runCommand } from "./adapter/run.ts";
 import { machineValue, timeoutMilliseconds } from "./settings.ts";
-import { healthContent, libraryContent, type Content, type LibraryKind } from "./views/model.ts";
-import type { Row } from "./views/model.ts";
+import {
+  healthContent,
+  libraryContent,
+  type Content,
+  type LibraryKind,
+  type Row,
+} from "./views/model.ts";
 import type { RowsProvider } from "./views/provider.ts";
 import { formatLocal } from "./views/time.ts";
 
@@ -64,14 +70,26 @@ export class Controller {
   private queue: Promise<void> = Promise.resolve();
   private environment: Environment | undefined;
   private warnedNewer = false;
+  private chosenFolder: string | undefined;
+  private readonly libraries = new Map<LibraryKind, LibraryReport>();
+  private readonly ownTerminals = new WeakSet<vscode.Terminal>();
+  private readonly views: { snippets: ViewHandle; skills: ViewHandle; project: ViewHandle };
 
   constructor(
     context: vscode.ExtensionContext,
-    private readonly views: { snippets: ViewHandle; skills: ViewHandle; project: ViewHandle },
+    views: { snippets: ViewHandle; skills: ViewHandle; project: ViewHandle },
   ) {
+    this.views = views;
     this.cache = new Cache(join(context.globalStorageUri.fsPath, "cache"));
     this.output = vscode.window.createOutputChannel("mdcompose");
-    context.subscriptions.push(this.output);
+    context.subscriptions.push(
+      this.output,
+      // A terminal the extension opened may have changed the libraries or the
+      // project, so its closing triggers a refresh.
+      vscode.window.onDidCloseTerminal((terminal) => {
+        if (this.ownTerminals.has(terminal)) void this.refresh();
+      }),
+    );
   }
 
   state(): ViewState {
@@ -88,6 +106,60 @@ export class Controller {
     this.output.show(true);
   }
 
+  log(message: string): void {
+    this.output.appendLine(message);
+  }
+
+  // The last library the command line reported, from a fresh read or the cache.
+  library(kind: LibraryKind): LibraryReport | undefined {
+    return this.libraries.get(kind);
+  }
+
+  // Whether a suitable command line was found. The actions need one.
+  isReady(): boolean {
+    return this.environment?.kind === "ready";
+  }
+
+  // A function that runs the command line in `cwd`, or undefined when it is not ready.
+  runIn(cwd: string): Run | undefined {
+    if (this.environment?.kind !== "ready") return undefined;
+    const executable = this.environment.executable;
+    const timeoutMs = this.timeout();
+    return (args) => runCommand({ executable, args, cwd, timeoutMs });
+  }
+
+  commandsIn(cwd: string): Commands | undefined {
+    const run = this.runIn(cwd);
+    return run === undefined ? undefined : createCommands(run);
+  }
+
+  // Runs the command line in a real terminal, so its own prompts work.
+  openTerminal(args: string[], cwd: string, name: string): void {
+    if (this.environment?.kind !== "ready") return;
+    const terminal = vscode.window.createTerminal({
+      name,
+      cwd,
+      shellPath: this.environment.executable,
+      shellArgs: args,
+    });
+    this.ownTerminals.add(terminal);
+    terminal.show();
+  }
+
+  // The folder the Project view reports on. In a window with several folders the
+  // user chooses; otherwise it is the only one.
+  folder(): string | undefined {
+    const folders = vscode.workspace.workspaceFolders ?? [];
+    const chosen = folders.find((folder) => folder.uri.fsPath === this.chosenFolder);
+    return (chosen ?? folders[0])?.uri.fsPath;
+  }
+
+  setFolder(folder: string): Promise<void> {
+    if (this.chosenFolder === folder) return Promise.resolve();
+    this.chosenFolder = folder;
+    return this.refresh();
+  }
+
   // Shows a loading line, then whatever was cached last time at once, before
   // anything is run, and then refreshes.
   start(): Promise<void> {
@@ -97,6 +169,18 @@ export class Controller {
     this.syncMessages();
     this.showCached();
     return this.refresh();
+  }
+
+  // One refresh at a time: a request made while one is running waits its turn.
+  refresh(): Promise<void> {
+    this.queue = this.queue.then(() => this.run());
+    return this.queue;
+  }
+
+  private timeout(): number {
+    return timeoutMilliseconds(
+      vscode.workspace.getConfiguration("mdcompose").get("timeoutSeconds"),
+    );
   }
 
   private showCached(): void {
@@ -115,22 +199,8 @@ export class Controller {
     }
   }
 
-  // One refresh at a time: a request made while one is running waits its turn.
-  refresh(): Promise<void> {
-    this.queue = this.queue.then(() => this.run());
-    return this.queue;
-  }
-
-  private folder(): string | undefined {
-    return vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-  }
-
   private healthName(folder: string): string {
     return `health-${createHash("sha1").update(folder).digest("hex").slice(0, 12)}`;
-  }
-
-  private log(message: string): void {
-    this.output.appendLine(message);
   }
 
   private async run(): Promise<void> {
@@ -144,7 +214,7 @@ export class Controller {
   private async resolveAndRefresh(): Promise<void> {
     const configuration = vscode.workspace.getConfiguration("mdcompose");
     const setting = machineValue(configuration.inspect<string>("executablePath"));
-    const timeoutMs = timeoutMilliseconds(configuration.get("timeoutSeconds"));
+    const timeoutMs = this.timeout();
     const folder = this.folder();
     const cwd = folder ?? homedir();
 
@@ -225,6 +295,9 @@ export class Controller {
   private applyLibrary(kind: LibraryKind, snapshot: Snapshot<LibraryReport> | null): void {
     const handle = kind === "snippet" ? this.views.snippets : this.views.skills;
     handle.provider.set(libraryContent(snapshot, kind, formatLocal));
+    if (snapshot !== null && snapshot.state !== "unavailable") {
+      this.libraries.set(kind, snapshot.value);
+    }
     this.syncMessages();
   }
 
@@ -235,10 +308,15 @@ export class Controller {
     this.syncMessages();
   }
 
-  // The tree view's message line mirrors the provider's content.
+  // The tree view's message line mirrors the provider's content, and the Project
+  // view names its folder when the window has several.
   private syncMessages(): void {
     this.views.snippets.view.message = this.views.snippets.provider.content.message;
     this.views.skills.view.message = this.views.skills.provider.content.message;
     this.views.project.view.message = this.views.project.provider.content.message;
+    const folders = vscode.workspace.workspaceFolders ?? [];
+    const folder = this.folder();
+    this.views.project.view.description =
+      folders.length > 1 && folder !== undefined ? basename(folder) : undefined;
   }
 }

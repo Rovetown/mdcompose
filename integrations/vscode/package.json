@@ -121,14 +121,144 @@
         "command": "mdcompose.showOutput",
         "title": "Show Details",
         "category": "mdcompose"
+      },
+      {
+        "command": "mdcompose.editSnippet",
+        "title": "Edit Snippet",
+        "category": "mdcompose",
+        "icon": "$(edit)"
+      },
+      {
+        "command": "mdcompose.removeSnippet",
+        "title": "Remove Snippet",
+        "category": "mdcompose",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "mdcompose.adoptSnippets",
+        "title": "Adopt Snippets From This Project",
+        "category": "mdcompose",
+        "icon": "$(cloud-download)"
+      },
+      {
+        "command": "mdcompose.editSkill",
+        "title": "Edit Skill",
+        "category": "mdcompose",
+        "icon": "$(edit)"
+      },
+      {
+        "command": "mdcompose.removeSkill",
+        "title": "Remove Skill",
+        "category": "mdcompose",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "mdcompose.adoptSkills",
+        "title": "Adopt Skills From This Project",
+        "category": "mdcompose",
+        "icon": "$(cloud-download)"
+      },
+      {
+        "command": "mdcompose.reapply",
+        "title": "Reapply Project",
+        "category": "mdcompose",
+        "icon": "$(sync)"
+      },
+      {
+        "command": "mdcompose.changeSelection",
+        "title": "Change Selection",
+        "category": "mdcompose",
+        "icon": "$(list-selection)"
+      },
+      {
+        "command": "mdcompose.copyEntryId",
+        "title": "Copy ID",
+        "category": "mdcompose"
+      },
+      {
+        "command": "mdcompose.revealEntry",
+        "title": "Reveal in File Explorer",
+        "category": "mdcompose"
       }
     ],
     "menus": {
       "view/title": [
         {
+          "command": "mdcompose.adoptSnippets",
+          "when": "view == mdcompose.snippets && mdcompose.state == 'ready'",
+          "group": "navigation@1"
+        },
+        {
+          "command": "mdcompose.adoptSkills",
+          "when": "view == mdcompose.skills && mdcompose.state == 'ready'",
+          "group": "navigation@1"
+        },
+        {
+          "command": "mdcompose.reapply",
+          "when": "view == mdcompose.project && mdcompose.state == 'ready'",
+          "group": "navigation@1"
+        },
+        {
+          "command": "mdcompose.changeSelection",
+          "when": "view == mdcompose.project && mdcompose.state == 'ready'",
+          "group": "navigation@2"
+        },
+        {
           "command": "mdcompose.refresh",
           "when": "view == mdcompose.snippets || view == mdcompose.skills || view == mdcompose.project",
-          "group": "navigation"
+          "group": "navigation@9"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "mdcompose.editSnippet",
+          "when": "view == mdcompose.snippets && viewItem == snippet && mdcompose.state == 'ready'",
+          "group": "inline@1"
+        },
+        {
+          "command": "mdcompose.removeSnippet",
+          "when": "view == mdcompose.snippets && viewItem == snippet && mdcompose.state == 'ready'",
+          "group": "inline@2"
+        },
+        {
+          "command": "mdcompose.revealEntry",
+          "when": "view == mdcompose.snippets && viewItem == snippet && mdcompose.state == 'ready'",
+          "group": "2_files@1"
+        },
+        {
+          "command": "mdcompose.copyEntryId",
+          "when": "view == mdcompose.snippets && viewItem == snippet && mdcompose.state == 'ready'",
+          "group": "2_files@2"
+        },
+        {
+          "command": "mdcompose.editSkill",
+          "when": "view == mdcompose.skills && viewItem == skill && mdcompose.state == 'ready'",
+          "group": "inline@1"
+        },
+        {
+          "command": "mdcompose.removeSkill",
+          "when": "view == mdcompose.skills && viewItem == skill && mdcompose.state == 'ready'",
+          "group": "inline@2"
+        },
+        {
+          "command": "mdcompose.revealEntry",
+          "when": "view == mdcompose.skills && viewItem == skill && mdcompose.state == 'ready'",
+          "group": "2_files@1"
+        },
+        {
+          "command": "mdcompose.copyEntryId",
+          "when": "view == mdcompose.skills && viewItem == skill && mdcompose.state == 'ready'",
+          "group": "2_files@2"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "mdcompose.copyEntryId",
+          "when": "false"
+        },
+        {
+          "command": "mdcompose.revealEntry",
+          "when": "false"
         }
       ]
     },

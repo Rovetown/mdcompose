@@ -17,6 +17,8 @@ export interface Row {
   icon: IconId;
   // Lets menus and commands target rows of one kind.
   contextValue: string;
+  // The library id, on rows that stand for a snippet or a skill.
+  entryId?: string;
 }
 
 export interface Content {
@@ -54,6 +56,7 @@ function libraryRow(kind: LibraryKind, entry: LibraryEntry, titleIsShared: boole
     tooltip: details.join("\n"),
     icon,
     contextValue: kind,
+    entryId: entry.id,
   };
 }
 
@@ -110,6 +113,11 @@ const FILE_LABELS: Record<string, string> = {
   claude_md: "CLAUDE.md",
 };
 
+// The name shown for a managed file, given the key the command line reports.
+export function fileLabel(key: string): string {
+  return FILE_LABELS[key] ?? key;
+}
+
 const TARGET_OK = "in-sync";
 
 export function healthContent(
@@ -145,7 +153,7 @@ export function healthContent(
     });
   } else {
     for (const entry of report.drift) {
-      const label = FILE_LABELS[entry.file] ?? entry.file;
+      const label = fileLabel(entry.file);
       const clean = entry.status === "clean";
       rows.push({
         id: `health:file:${entry.file}`,
