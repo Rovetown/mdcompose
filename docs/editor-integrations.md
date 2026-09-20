@@ -116,7 +116,7 @@ Capabilities, ordered from cheapest to most work:
 | Diag | Diagnostics | Drift and lock problems shown as editor problem markers |
 | Deco | Block decoration | Highlight, fold, or mark managed-block regions |
 | Panel | Custom panel | A tree or webview for browsing the library |
-| Schema | JSON Schema | Validate `mdcompose.lock` and snippet frontmatter |
+| Schema | JSON Schema | Validate `mdcompose.lock` and the global `config.json` |
 | Reads | Reads AGENTS.md | The editor's agent consumes the output mdcompose writes |
 
 An MCP server capability is deliberately not a column: it is rejected (see
@@ -139,9 +139,12 @@ Notes on the cells that limit a design:
   a Copilot setting. This is the target consumer, not
   a plugin feature: mdcompose's existing output already reaches these editors.
 - **Every JSON-shaped capability (Schema) has a cheap route:** publish JSON
-  Schemas for `mdcompose.lock` and snippet frontmatter once to a public schema
+  Schemas for `mdcompose.lock` and `config.json` once to a public schema
   catalog. Editors with a JSON or YAML language server then validate without any
   mdcompose-specific plugin. The schemas do not exist yet.
+  Snippet and skill frontmatter is YAML inside a Markdown file, which a generic
+  JSON or YAML language server does not validate, so this route does not cover
+  it; frontmatter checks would be a per-editor feature of an integration.
 
 ## 3. Effort, reach, and order
 
@@ -160,7 +163,7 @@ single build reaches three of six editors once Open VSX publishing is in place.
 ## 4. Plan
 
 1. **Cross-editor, no plugin:** define JSON Schemas for `mdcompose.lock` and
-   snippet frontmatter, and list them in a public schema catalog. Reaches every
+   `config.json`, and list them in a public schema catalog. Reaches every
    editor with a JSON or YAML language server.
 2. **Wave 1, VS Code family:** one TypeScript extension covering Cmd, Pick, Stat,
    Diag, and Deco through the CLI's `--json` output. Publish to both registries.
@@ -202,20 +205,20 @@ Rules that hold for every integration:
 
 ## Sources
 
-- Open VSX registry and its users: https://thehackernews.com/2026/01/vs-code-forks-recommend-missing.html
-  and https://en.wikipedia.org/wiki/Open_VSX
-- Visual Studio Code publishing: https://code.visualstudio.com/api/working-with-extensions/publishing-extension
-- Microsoft Publisher Agreement: https://learn.microsoft.com/en-us/legal/marketplace/msft-publisher-agreement
-- JetBrains Free Plugin License: https://www.jetbrains.com/legal/docs/terms/jetbrains-free-plugin-license/1.1/
-- JetBrains Marketplace approval guidelines: https://plugins.jetbrains.com/docs/marketplace/jetbrains-marketplace-approval-guidelines.html
-- IntelliJ Platform SDK: https://plugins.jetbrains.com/docs/intellij/welcome.html
-- Cursor data use: https://cursor.com/data-use
-- Antigravity terms, rules, and extensions: https://antigravity.google/terms,
-  https://antigravity.google/docs/rules-workflows, https://antigravity.google/docs/ide/extensions/
-- Open VSX publishing: https://github.com/EclipseFdn/open-vsx.org/wiki/Publishing-Extensions
-- Neovim remote plugins: https://neovim.io/doc/user/remote_plugin/
-- Visual Studio Community licence: https://visualstudio.microsoft.com/vs/community/
-- Removed editors, for reference: https://zed.dev/docs/extensions/developing-extensions,
-  https://github.com/helix-editor/helix/discussions/3806,
-  https://windsurf.com/terms-of-service-individual,
-  https://kiro.dev/docs/privacy-and-security/data-protection/
+- Open VSX registry and its users: <https://thehackernews.com/2026/01/vs-code-forks-recommend-missing.html>
+  and <https://en.wikipedia.org/wiki/Open_VSX>
+- Visual Studio Code publishing: <https://code.visualstudio.com/api/working-with-extensions/publishing-extension>
+- Microsoft Publisher Agreement: <https://learn.microsoft.com/en-us/legal/marketplace/msft-publisher-agreement>
+- JetBrains Free Plugin License: <https://www.jetbrains.com/legal/docs/terms/jetbrains-free-plugin-license/1.1/>
+- JetBrains Marketplace approval guidelines: <https://plugins.jetbrains.com/docs/marketplace/jetbrains-marketplace-approval-guidelines.html>
+- IntelliJ Platform SDK: <https://plugins.jetbrains.com/docs/intellij/welcome.html>
+- Cursor data use: <https://cursor.com/data-use>
+- Antigravity terms, rules, and extensions: <https://antigravity.google/terms>,
+  <https://antigravity.google/docs/rules-workflows>, <https://antigravity.google/docs/ide/extensions/>
+- Open VSX publishing: <https://github.com/EclipseFdn/open-vsx.org/wiki/Publishing-Extensions>
+- Neovim remote plugins: <https://neovim.io/doc/user/remote_plugin/>
+- Visual Studio Community licence: <https://visualstudio.microsoft.com/vs/community/>
+- Removed editors, for reference: <https://zed.dev/docs/extensions/developing-extensions>,
+  <https://github.com/helix-editor/helix/discussions/3806>,
+  <https://windsurf.com/terms-of-service-individual>,
+  <https://kiro.dev/docs/privacy-and-security/data-protection/>
