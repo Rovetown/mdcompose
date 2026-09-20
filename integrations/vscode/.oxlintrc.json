@@ -10,5 +10,5 @@
       }
     }
   ],
-  "ignorePatterns": ["dist", "node_modules", ".vscode-test"]
+  "ignorePatterns": ["dist", "node_modules", ".vscode-test", ".test-build"]
 }

@@ -30,7 +30,7 @@
     "lint": "oxlint --type-aware",
     "format": "oxfmt --check src test",
     "format:write": "oxfmt src test",
-    "test": "node --test \"src/**/*.test.ts\"",
+    "test": "esbuild \"src/**/*.test.ts\" --bundle --platform=node --target=node20 --format=cjs --outdir=.test-build --outbase=src --log-level=warning && node --test \".test-build/**/*.test.js\"",
     "test:editor": "node test/run.mjs",
     "package": "vsce package --no-dependencies"
   },

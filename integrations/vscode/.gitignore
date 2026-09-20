@@ -4,3 +4,4 @@ dist/
 .vscode-test/
 .ud/
 .ex/
+.test-build/

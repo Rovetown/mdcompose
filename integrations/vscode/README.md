@@ -25,9 +25,13 @@ The toolchain is Bun first, with npm as a tested fallback. Every script in
     bun run typecheck      type-check with tsc
     bun run lint           oxlint, type-aware
     bun run format         oxfmt, check only (format:write fixes)
-    bun run test           unit tests, run by Node's test runner
+    bun run test           bundle the unit tests with esbuild, run them with Node
     bun run test:editor    load the extension into a real editor and test it
     bun run package        build the .vsix package
+
+The unit tests are bundled first, then run by Node's built-in test runner, so they
+work on any Node 22 or newer build, including distribution builds of Node that
+cannot run TypeScript directly (the WSL Ubuntu package is one).
 
 `test:editor` starts a real editor. Set `CODE_EXE` to an installed editor
 executable to use it; otherwise the test tool downloads VS Code.
