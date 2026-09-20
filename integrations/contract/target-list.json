@@ -1,0 +1,10 @@
+{
+  "targets": [
+    {
+      "label": "codex",
+      "path": "<scratch>/home/.codex/AGENTS.md",
+      "present": false,
+      "sync": "missing"
+    }
+  ]
+}

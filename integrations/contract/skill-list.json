@@ -1,0 +1,16 @@
+{
+  "library": "<scratch>/config/skills",
+  "skills": [
+    {
+      "id": "code-review",
+      "title": "Code review",
+      "description": "How we review code here",
+      "tags": [
+        "review"
+      ],
+      "stack_signals": [],
+      "category": "process",
+      "is_bundle": false
+    }
+  ]
+}

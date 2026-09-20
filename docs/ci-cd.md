@@ -112,6 +112,45 @@ Consequences to know about:
   required check reports on every pull request, docs-only included.
   `supply-chain.yml` is filtered on pull requests but is not required.
 
+## Planned: editor integrations (not implemented)
+
+Nothing in this section exists yet. It records the plan from the
+`integrations-foundation` change so the first integration builds against it. The
+workflow edits are made together with that first integration, so they are
+exercised by a real one.
+
+- **The `changes` job gains flags.** Its single `code` output splits into `python`
+  and one flag per integration (`vscode`, later `jetbrains` and `neovim`). A change
+  counts as Python-relevant unless every changed file is under `docs/`, is
+  Markdown, or is inside an integration directory. `integrations/contract/` is the
+  exception: the Python suite reads those samples, so a change there is
+  Python-relevant. A change inside `integrations/vscode/` runs only the VS Code
+  jobs, not the Python matrix.
+- **One reusable workflow per integration**, for example `integration-vscode.yml`
+  with a `workflow_call` trigger. `ci.yml` calls it behind that integration's flag,
+  so `all-green` (the only check the ruleset requires beside CodeQL and dependency
+  review) also gates integration changes, and a failure still names the
+  integration. Skipped calls count as passing, as with the existing jobs.
+- **Build and test jobs** install with the toolchain the Bun spike chose (Bun
+  first, npm as the fallback), run the adapter tests, build the bundle, and
+  package the extension. `oven-sh/setup-bun` or `actions/setup-node`, whichever is
+  chosen, is pinned to a commit SHA like every other action.
+- **Publishing is a separate, manual workflow** started with `workflow_dispatch`,
+  never on a push, behind an environment with a required reviewer as `pypi` is.
+  Registry tokens are repository secrets, one per registry, separate from any
+  token used locally.
+- **Tag guard.** The publish workflow refuses any tag that does not match
+  `^integration-<editor>-v[0-9]+\.[0-9]+\.[0-9]+$`. `release.yml` starts on any
+  tag beginning with `v`, so an integration tag must never begin with `v`, and the
+  guard is what keeps a mistake from starting a release of the command line.
+- **Other workflows.** CodeQL adds the JavaScript and TypeScript language when the
+  first extension code exists. Renovate gets a manager for the JavaScript
+  lockfile. The supply-chain workflow needs a licence check and an audit for the
+  JavaScript dependencies, since the existing ones cover only the Python
+  dependency set.
+- **Using Bun in the workflows** is a separate roadmap item in `TODO.md`, decided
+  after the spike with real timings.
+
 ## The `bump.yml` PAT wrinkle (important)
 
 A tag pushed by the built-in `GITHUB_TOKEN` **does not trigger another

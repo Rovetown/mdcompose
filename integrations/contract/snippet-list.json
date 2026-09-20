@@ -1,0 +1,30 @@
+{
+  "library": "<scratch>/config/snippets",
+  "snippets": [
+    {
+      "id": "commit-style",
+      "title": "Commit style",
+      "description": "How commits are written here",
+      "tags": [
+        "git",
+        "conventions"
+      ],
+      "applies_to": "both",
+      "stack_signals": [],
+      "category": "conventions",
+      "order": null
+    },
+    {
+      "id": "python-style",
+      "title": "Python style",
+      "description": null,
+      "tags": [
+        "python"
+      ],
+      "applies_to": "both",
+      "stack_signals": [],
+      "category": "languages",
+      "order": null
+    }
+  ]
+}

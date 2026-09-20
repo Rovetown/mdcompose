@@ -1,0 +1,93 @@
+{
+  "os": "windows",
+  "wsl": false,
+  "paths": [
+    {
+      "label": "config directory",
+      "status": "present",
+      "path": "<scratch>/config",
+      "on_windows_mount": false,
+      "onedrive_root": null
+    },
+    {
+      "label": "config file",
+      "status": "present",
+      "path": "<scratch>/config/config.json",
+      "on_windows_mount": false,
+      "onedrive_root": null
+    },
+    {
+      "label": "snippet library",
+      "status": "present",
+      "path": "<scratch>/config/snippets",
+      "on_windows_mount": false,
+      "onedrive_root": null
+    },
+    {
+      "label": "global CLAUDE.md",
+      "status": "present",
+      "path": "<scratch>/home/.claude/CLAUDE.md",
+      "on_windows_mount": false,
+      "onedrive_root": null
+    },
+    {
+      "label": "global AGENTS.md",
+      "status": "present",
+      "path": "<scratch>/home/.claude/AGENTS.md",
+      "on_windows_mount": false,
+      "onedrive_root": null
+    },
+    {
+      "label": "project directory",
+      "status": "present",
+      "path": "<scratch>/project",
+      "on_windows_mount": false,
+      "onedrive_root": null
+    },
+    {
+      "label": "project CLAUDE.md",
+      "status": "present",
+      "path": "<scratch>/project/CLAUDE.md",
+      "on_windows_mount": false,
+      "onedrive_root": null
+    },
+    {
+      "label": "project AGENTS.md",
+      "status": "present",
+      "path": "<scratch>/project/AGENTS.md",
+      "on_windows_mount": false,
+      "onedrive_root": null
+    },
+    {
+      "label": "project mdcompose.lock",
+      "status": "present",
+      "path": "<scratch>/project/mdcompose.lock",
+      "on_windows_mount": false,
+      "onedrive_root": null
+    }
+  ],
+  "warnings": [],
+  "initialized": true,
+  "targets": [
+    {
+      "label": "codex",
+      "path": "<scratch>/home/.codex/AGENTS.md",
+      "present": false,
+      "sync": "missing"
+    }
+  ],
+  "drift": [
+    {
+      "file": "agents_md",
+      "path": "<scratch>/project/AGENTS.md",
+      "status": "clean",
+      "detail": null
+    },
+    {
+      "file": "claude_md",
+      "path": "<scratch>/project/CLAUDE.md",
+      "status": "clean",
+      "detail": null
+    }
+  ]
+}
