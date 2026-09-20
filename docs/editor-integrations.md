@@ -17,7 +17,7 @@ mark were checked against a primary source.
 
 ## Candidates
 
-Seven editors, screened for: free to use, free to develop and publish for, and
+Six editors, screened for: free to use, free to develop and publish for, and
 no vendor terms that trade away the developer's work to AI training.
 
 | Editor | Kind | Extension host |
@@ -25,7 +25,6 @@ no vendor terms that trade away the developer's work to AI training.
 | VS Code | mainstream editor | VS Code extension API |
 | VSCodium | VS Code build without Microsoft branding and telemetry | same API, Open VSX |
 | Cursor | AI-first VS Code fork | same API, Open VSX |
-| Antigravity | AI-first VS Code fork (Google) | same API, Open VSX |
 | JetBrains IDEs | IntelliJ Platform family (IDEA, PyCharm, WebStorm, ...) | IntelliJ Platform SDK |
 | Neovim | terminal editor | Lua plugins, RPC hosts |
 | Visual Studio | Microsoft IDE | VSIX |
@@ -42,6 +41,7 @@ Dropped by decision, and not planned for now. Users of these editors run the CLI
 | Sublime Text | Small reach for the effort |
 | Windsurf | Near-duplicate of Cursor for extension purposes; free-tier terms allow training by default; ownership in flux (folding into Devin Desktop) |
 | Kiro | Small reach; free-tier terms allow training by default |
+| Antigravity | Individual accounts have their usage and interaction data collected under Google's terms; does not document `AGENTS.md` |
 | Xcode, Emacs, Vim | Dropped earlier |
 
 Revisit any of them if its extension surface changes or demand appears.
@@ -57,7 +57,6 @@ the developer does there?
 | VS Code | Free (Microsoft licence, MIT source) | Free | Visual Studio Marketplace, free. Personal access tokens retire 2026-12-01, so publish with Entra ID | Marketplace terms restrict the marketplace to Microsoft products. No clause found that trains on published extensions. Terms not read end to end | PASS |
 | VSCodium | Free, MIT binaries, telemetry off | Free, same API | Open VSX, free. Needs an Eclipse account, a signed Eclipse publisher agreement, then an access token and a namespace via `ovsx` | None found | PASS |
 | Cursor | Free tier and paid | Free (no need to develop inside it) | Open VSX (Cursor has no marketplace of its own) | Cursor's terms cover the code and prompts a Cursor user sends to its AI, not extension uploads. Privacy Mode is zero retention and no training; on individual plans the user must turn it on | PASS as a test target |
-| Antigravity | Free tier (sign in with a Google account) | Free (no need to develop inside it) | Open VSX (default registry)* | Individual accounts fall under Google's terms and privacy policy plus Antigravity's additional terms: Google records and stores usage and interaction data (deletable on request) and uses it under that agreement. The "never trains on your code" statement applies to enterprise (Google Cloud) accounts only | CAUTION: test target only |
 | JetBrains | Free tier of the IDEs; IntelliJ Platform is Apache-2.0 | Free (Gradle plugin, IntelliJ IDEA free tier) | JetBrains Marketplace, free. Needs a developer EULA or an open-source licence, and a privacy policy if personal data is collected | The AI-training prohibition found is in JetBrains' own Free Plugin License, not a term on third-party plugins. Marketplace agreement not read end to end | PASS |
 | Neovim | Free (Apache-2.0) | Free | GitHub, no registry | No vendor | PASS |
 | Visual Studio | Community edition free for individuals, open source, and organisations of up to 5 developers | Free | Visual Studio Marketplace, free | Same Marketplace terms as VS Code | PASS, low priority |
@@ -81,17 +80,14 @@ authors. Specifically:
 
 So the real concern is narrower than it sounds: it is where a developer writes
 private code, not where a finished extension is installed. Development stays in
-VS Code, VSCodium, Neovim, or a JetBrains IDE, and Cursor and Antigravity only
-need the built file installed to check that it loads. Antigravity is the same
-class as the removed Kiro and Windsurf: individual accounts have their data
-collected. It stays only as an install-and-check target, and can be dropped
-like them.
+VS Code, VSCodium, Neovim, or a JetBrains IDE, and Cursor only needs the built
+file installed to check that it loads.
 
-### One package, four editors
+### One package, three editors
 
-VS Code, VSCodium, Cursor, and Antigravity share the VS Code extension API. One
-`.vsix` built once loads in all four. What differs is the registry: VS Code
-reads Microsoft's Marketplace, the other three read Open VSX (Microsoft's terms
+VS Code, VSCodium, and Cursor share the VS Code extension API. One `.vsix`
+built once loads in all three. What differs is the registry: VS Code reads
+Microsoft's Marketplace, the other two read Open VSX (Microsoft's terms
 forbid forks from using its marketplace). So publishing means two registry
 uploads of the same file. The rows stay separate because behaviour can still
 differ:
@@ -131,7 +127,6 @@ Decisions).
 | VS Code | Y | Y | Y | Y | Y | Y | Y | Y |
 | VSCodium | Y | Y | Y | Y | Y | Y | Y | n/a |
 | Cursor | Y | Y | Y | Y | Y | Y | Y | Y |
-| Antigravity | Y* | Y* | Y* | Y* | Y* | Y* | Y* | N (not documented) |
 | JetBrains | Y | Y | Y | Y | Y | Y | Y | ? |
 | Neovim | Y | Y | Y | Y | Y | P | Y* | plugin |
 | Visual Studio | Y* | Y* | Y* | Y* | Y* | Y* | P* | ? |
@@ -141,7 +136,7 @@ Notes on the cells that limit a design:
 - **Neovim needs no marketplace.** A small Lua plugin that calls the CLI and
   renders `--json` output covers Cmd through Deco.
 - **Reads AGENTS.md.** Cursor reads `AGENTS.md` natively. VS Code reads it under
-  a Copilot setting. Antigravity documents its own rule locations (`.agents/rules/` and `~/.gemini/GEMINI.md`) and does not mention `AGENTS.md`. This is the target consumer, not
+  a Copilot setting. This is the target consumer, not
   a plugin feature: mdcompose's existing output already reaches these editors.
 - **Every JSON-shaped capability (Schema) has a cheap route:** publish JSON
   Schemas for `mdcompose.lock` and snippet frontmatter once to a public schema
@@ -155,13 +150,12 @@ Notes on the cells that limit a design:
 | VS Code | 1 | Wave 1 | one `.vsix` (TypeScript) | Very high | Medium | Publish to Marketplace and Open VSX |
 | VSCodium | 1 | Wave 1 | same `.vsix` | Low, but free | None extra | Open VSX listing covers it |
 | Cursor | 1 | Wave 1 | same `.vsix` | High | None extra | Test target only |
-| Antigravity | 3 | Wave 1 | same `.vsix` | Uncertain | None extra | Test target only |
 | JetBrains | 1 | Wave 2 | Kotlin plugin | High | High | Second codebase, second toolchain |
 | Neovim | 1 | Wave 3 | Lua plugin | Medium, loyal | Low | Thin wrapper over the CLI |
 | Visual Studio | 3 | deferred | VSIX (.NET) | Windows only | High | Poor fit for a cross-platform tool |
 
 The zero-extra-effort rows are the argument for one VS Code extension first: a
-single build reaches four of seven editors once Open VSX publishing is in place.
+single build reaches three of six editors once Open VSX publishing is in place.
 
 ## 4. Plan
 
@@ -192,8 +186,8 @@ Decided (2026-09-20):
   (see the threat model in `AGENTS.md`), so this is rejected, not deferred.
 - **No language server.** It would add a large dependency and a long-running
   process for little that the CLI and JSON Schemas do not already cover.
-- **Editor scope.** Kiro, Windsurf, Zed, Helix, and Sublime Text are removed for
-  now; their users run the CLI or TUI from a terminal.
+- **Editor scope.** Kiro, Windsurf, Antigravity, Zed, Helix, and Sublime Text are
+  removed for now; their users run the CLI or TUI from a terminal.
 
 Still open:
 
