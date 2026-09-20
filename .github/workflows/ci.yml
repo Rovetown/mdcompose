@@ -7,8 +7,12 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # A pull request supersedes its own earlier runs. Each push to main keeps a
+  # group of its own instead: a later docs-only push would otherwise cancel the
+  # tests of an earlier code push, and because the docs-only run skips those
+  # tests, that code would never be verified.
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 # The default token is read-only. No job here writes to the repository.
 permissions:
@@ -20,11 +24,57 @@ env:
   NO_COLOR: "1"
 
 jobs:
+  changes:
+    # Documentation and images cannot change a test, lint, or build result, so
+    # the expensive jobs below are skipped when a run touches nothing else.
+    # This is decided per job rather than with a trigger-level path filter,
+    # because a workflow skipped by a path filter reports no checks at all and
+    # branch protection would wait forever on the required `all green`. Here the
+    # workflow always runs, `all-green` always reports, and `ascii` and
+    # `gitleaks` still cover Markdown. Anything unexpected (a manual run, a
+    # base commit that cannot be found) counts as a code change.
+    name: detect code changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Compare the changed files against the documentation patterns
+        id: filter
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.sha }}
+        run: |
+          code=true
+          if [ "$EVENT" != "workflow_dispatch" ] && [ -n "$BASE" ] && git cat-file -e "$BASE^{commit}" 2>/dev/null; then
+            # Assigned on its own line so a failing git diff fails the job
+            # instead of reading as "no code changed".
+            files=$(git diff --name-only "$BASE" "$HEAD_SHA")
+            code=false
+            while IFS= read -r file; do
+              case "$file" in
+                "") ;;
+                docs/*|*.md|.github/FUNDING.yml|.github/ISSUE_TEMPLATE/*) ;;
+                *) code=true ;;
+              esac
+            done <<< "$files"
+          fi
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          echo "code changed: $code"
+
   test:
     # The full matrix runs on all three operating systems rather than only on
     # Linux. Cross-platform path and encoding handling is what this project
     # claims to do better than its neighbours, so it is the last thing that
     # should be tested on one platform and assumed elsewhere.
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     name: test ${{ matrix.python }} on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
@@ -75,6 +125,8 @@ jobs:
           fi
 
   lint:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     name: lint
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -109,6 +161,8 @@ jobs:
     # [tool.coverage.report] so coverage cannot slide unnoticed between
     # ratchets. It is not the matrix's job because branch coverage differs by
     # platform (winreg, /mnt/) and the floor is set against one of them.
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     name: coverage floor
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -148,6 +202,8 @@ jobs:
         run: python3 scripts/check_ascii.py
 
   build:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     name: build and install
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -180,6 +236,8 @@ jobs:
     # (actionlint fetches a binary, zizmor ships as a compiled tool), run here
     # from pinned releases instead. Everything else in .pre-commit-config.yaml
     # is left to pre-commit.ci; those two are listed in its `ci.skip`.
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     name: workflow lint
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -272,11 +330,12 @@ jobs:
   all-green:
     # The single check branch protection requires: it passes only if every job
     # it needs passed or was legitimately skipped (commits is skipped outside a
-    # pull request). Adding a job above without adding it here is the one way to
+    # pull request, and the code jobs are skipped when only documentation
+    # changed). Adding a job above without adding it here is the one way to
     # weaken the gate, so the list is deliberately explicit.
     name: all green
     if: always()
-    needs: [test, lint, coverage, ascii, build, workflows, commits, gitleaks]
+    needs: [changes, test, lint, coverage, ascii, build, workflows, commits, gitleaks]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -298,6 +357,8 @@ jobs:
   # needs list: benchmarks never block a merge. Needs the repo connected at
   # codspeed.io once before its first run.
   benchmarks:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     name: benchmarks
     runs-on: ubuntu-latest
     timeout-minutes: 20

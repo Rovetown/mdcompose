@@ -3,6 +3,13 @@ name: codeql
 on:
   push:
     branches: [main]
+    # Documentation and images hold no code to analyse. Push only: the pull
+    # request run must always report because branch protection requires it.
+    paths-ignore:
+      - "docs/**"
+      - "**/*.md"
+      - ".github/FUNDING.yml"
+      - ".github/ISSUE_TEMPLATE/**"
   pull_request:
     branches: [main]
   schedule:

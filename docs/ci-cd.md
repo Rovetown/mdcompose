@@ -30,7 +30,8 @@ One thing to confirm before wiring: `gitleaks/gitleaks-action` needs a free
 - One workflow file per concern; each declares its own minimal `permissions`,
   and a failure names the concern.
 - Every workflow gets a `concurrency` group keyed on the ref, cancelling
-  superseded runs on the same branch.
+  superseded runs on the same branch. `ci.yml` is the exception for pushes; see
+  "Skipping work for documentation-only changes".
 - Every job sets `timeout-minutes`.
 - Actions pinned to a full commit SHA; Renovate's
   `helpers:pinGitHubActionDigests` does the first pin and keeps them current.
@@ -68,6 +69,48 @@ What each of the newer pieces does:
 Release, a prerelease tag (`v0.4.0a1`, `b1`, `rc1`) or a `workflow_dispatch` off
 a branch runs TestPyPI only, with `pypi` and `github-release` gated on
 `if: needs.classify.outputs.stable == 'true'`.
+
+## Skipping work for documentation-only changes
+
+A change that only touches documentation or images does not need the test
+matrix, so the expensive jobs are skipped for it. The mechanism differs per
+workflow because of one rule: a workflow skipped by a trigger-level path filter
+reports no checks at all, and branch protection would wait forever on a required
+check that never arrives.
+
+- **`ci.yml` decides per job.** A `changes` job diffs the run against its base
+  (the pull request base, or the commit before a push) and outputs `code=true`
+  unless every changed file is under `docs/`, ends in `.md`, or is
+  `.github/FUNDING.yml` or an issue template. Everything else counts, `LICENSE`
+  included, because `pyproject.toml` ships it in the wheel and sdist. `test`, `lint`,
+  `coverage`, `build`, `workflows`, and `benchmarks` need it and run only when
+  `code` is true. `ascii`, `gitleaks`, and `commits` always run, so Markdown is
+  still checked for non-ASCII characters and secrets. `all-green` always runs
+  and treats a skipped job as passing, so the required check reports on every
+  pull request and push. Anything unexpected counts as a code change: a manual
+  run, a first push, or a base commit that cannot be found. A failing `git diff`
+  fails the job rather than reading as "no code changed".
+- **`codeql.yml` and `scorecard.yml` filter the push trigger only** with
+  `paths-ignore` for `docs/**` and `**/*.md`. Their pull request runs are
+  unfiltered because `CodeQL` is a required check.
+- **`supply-chain.yml` runs on push only when `pyproject.toml`, `uv.lock`,
+  `scripts/check_licenses.py`, or the workflow itself changes.** That is the
+  list its pull request trigger already used. The weekly cron catches
+  advisories that land in between.
+
+Consequences to know about:
+
+- `ci.yml` no longer cancels a running push when another push arrives. Its
+  concurrency group is per commit for pushes and per pull request number for
+  pull requests. Otherwise a docs-only push would cancel the tests of the code
+  push before it, and its own run would skip them, leaving that code unverified.
+- A release still runs everything: the `bump.yml` commit changes
+  `pyproject.toml`, so `code` is true.
+- Only `all green`, `analyze python`, and `dependency review` are required
+  checks. `ci.yml` never path-filters its triggers, `codeql.yml` does not filter
+  its pull request run, and `dependency-review.yml` has no filter, so every
+  required check reports on every pull request, docs-only included.
+  `supply-chain.yml` is filtered on pull requests but is not required.
 
 ## The `bump.yml` PAT wrinkle (important)
 
@@ -115,14 +158,17 @@ for real on a tag against TestPyPI.
   autoupdates weekly. A runner, not a competitor. Run the `hooks` job **or**
   pre-commit.ci, never both.
 
-## Branch protection (repo settings, at creation time)
+## Branch protection (the `main` ruleset, checked 2026-09-20)
 
-Require before merge to `main`: `all-green`, `supply chain / licenses`,
-`supply chain / audit`, `supply chain / sbom`, `supply chain / osv`, `CodeQL`.
-Require one review, require the branch up to date, require linear history
-(matches the fast-forward merge style), block force-push. Enable Dependabot
-alerts + security updates and private vulnerability reporting. Allow the
-`bump.yml` token identity to bypass the push restriction.
+The repository ruleset named `main` is active. It requires a pull request
+(squash or rebase merge, zero required approvals), linear history, and no
+deletion or non-fast-forward updates. Its required status checks, with the
+branch required to be up to date, are exactly three: `all green`,
+`analyze python` (the CodeQL job), and `dependency review`. The `supply chain`
+jobs are not required checks. The repository owner is the only bypass actor
+(bypass mode always), which is what allows a direct push to `main`. Dependabot
+alerts and security updates and private vulnerability reporting are enabled.
+The `bump.yml` token identity must stay a bypass actor for the release commit.
 
 ## Release flow, end to end
 

@@ -3,6 +3,14 @@ name: supply chain
 on:
   push:
     branches: [main]
+    # Same filter as the pull request below: only a dependency, license-policy,
+    # or workflow change can alter these results. The weekly schedule catches
+    # advisories that land in between.
+    paths:
+      - pyproject.toml
+      - uv.lock
+      - .github/workflows/supply-chain.yml
+      - scripts/check_licenses.py
   pull_request:
     paths:
       - pyproject.toml
