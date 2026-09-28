@@ -297,9 +297,29 @@ jobs:
         run: uv sync --locked
 
       - name: Check every commit in the pull request
+        # cz check --rev-range enforces Conventional Commits on the whole range, and
+        # has no allowlist for the pre-commit.ci autoupdate bot's commit subject
+        # ("[pre-commit.ci] pre-commit autoupdate"), which is not itself a
+        # Conventional Commit. Check commits one at a time instead, skipping only
+        # that bot's own commits so a human's non-conventional commit still fails.
         env:
           RANGE: ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}
-        run: uv run --no-sync cz check --rev-range "$RANGE"
+        run: |
+          status=0
+          for sha in $(git rev-list --no-merges "$RANGE"); do
+            author_email=$(git log -1 --format='%ae' "$sha")
+            subject=$(git log -1 --format='%s' "$sha")
+            if [ "$author_email" = "66853113+pre-commit-ci[bot]@users.noreply.github.com" ] \
+              && [ "${subject#"[pre-commit.ci] pre-commit autoupdate"}" != "$subject" ]; then
+              echo "Skipping pre-commit.ci autoupdate commit $sha: $subject"
+              continue
+            fi
+            message=$(git log -1 --format=%B "$sha")
+            if ! uv run --no-sync cz check --message "$message"; then
+              status=1
+            fi
+          done
+          exit "$status"
 
   gitleaks:
     # The pre-commit gitleaks hook only sees a working tree. This scans the full
