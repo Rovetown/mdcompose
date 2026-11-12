@@ -316,7 +316,7 @@
     "ovsx": "1.3.0",
     "oxfmt": "0.73.0",
     "oxlint": "1.87.0",
-    "oxlint-tsgolint": "7.0.2004",
+    "oxlint-tsgolint": "7.0.2006",
     "typescript": "7.0.2"
   },
   "capabilities": {
